@@ -754,7 +754,12 @@ const F_SOL   = {limon:{f:1.00,label:"Limoneux"},argile:{f:0.88,label:"Argileux"
 let isOnline = true;
 let meteoEstData = null;   // données météo pour estimation
 window._meteoLoaded = false;
-let chatHistory = [];      // historique de conversation Claude API
+let chatHistory = [];      // historique de conversation Gemini API
+
+// URL serveur : auto-détecté selon contexte
+const API_BASE = (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'https://performer.onrender.com'
+  : '';
 
 /* ================================================================
    NAVIGATION
@@ -900,7 +905,7 @@ async function sendMsg() {
       // Ajouter le message utilisateur à l'historique
       chatHistory.push({ role: 'user', content: text });
 
-      const resp = await fetch('/api/gemini', {
+      const resp = await fetch(`${API_BASE}/api/gemini`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2105,7 +2110,7 @@ En tant que phytopathologiste expert pour l'Afrique de l'Ouest et le Burkina Fas
 Sois concis et pratique. Maximum 250 mots.`
     });
 
-    const resp = await fetch('/api/gemini', {
+    const resp = await fetch(`${API_BASE}/api/gemini`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2300,7 +2305,7 @@ async function getAIRecommendation() {
   const productList = INTRANTS_DB.map(p => `- ${p.name} (${p.brand}) — ${p.prix.toLocaleString('fr-FR')} FCFA/${p.unit}${p.subv?' [subventionné]':''} — cibles: ${p.cibles.join(', ')}`).join('\n');
 
   try {
-    const resp = await fetch('/api/gemini', {
+    const resp = await fetch(`${API_BASE}/api/gemini`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -2419,10 +2424,16 @@ function setAlertFilter(danger, btn) {
    ALERTES — WEBSOCKET
    ================================================================ */
 function connectAlertsWS() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const url   = `${proto}://${location.host}/ws/alerts`;
+  // Si API_BASE pointe vers Render, construire le WS depuis cette URL
+  let wsUrl;
+  if (API_BASE) {
+    wsUrl = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws/alerts';
+  } else {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    wsUrl = `${proto}://${location.host}/ws/alerts`;
+  }
 
-  _alertWS = new WebSocket(url);
+  _alertWS = new WebSocket(wsUrl);
 
   _alertWS.onopen = () => {
     document.getElementById('alert-ws-dot').style.background   = '#4ADE80';
@@ -2545,7 +2556,7 @@ async function submitAlert() {
   }
 
   try {
-    const resp = await fetch('/api/alert/submit', {
+    const resp = await fetch(`${API_BASE}/api/alert/submit`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(body),
@@ -2583,14 +2594,60 @@ async function submitAlert() {
 /* ================================================================
    INITIALISATION
    ================================================================ */
-(function init() {
+(async function init() {
   onCultureChange();
   const today = new Date();
   document.getElementById('semis').value = `${today.getFullYear()}-06-01`;
   loadMeteoEstimation();
-  document.getElementById('topDot').style.background = '#4ADE80';
   renderIntrants();
+
+  // ── Détection auto connexion internet ──────────────────────────
+  async function checkConnectivity() {
+    try {
+      const r = await fetch(`${API_BASE}/status`, { method: 'GET', cache: 'no-store' });
+      return r.ok;
+    } catch { return false; }
+  }
+
+  function applyMode(online) {
+    isOnline = online;
+    const toggle = document.getElementById('modeToggle');
+    if (toggle) toggle.checked = online;
+
+    const badge = document.getElementById('modeBadge');
+    const info  = document.getElementById('modeInfo');
+    const dot   = document.getElementById('topDot');
+    const ts    = document.getElementById('topStatus');
+    const oc    = document.getElementById('offlineCard');
+
+    if (online) {
+      badge.textContent = 'En ligne'; badge.className = 'mode-badge online';
+      info.textContent  = 'Réponses via IA Gemini · Connexion active';
+      dot.style.background = '#4ADE80'; ts.textContent = 'En ligne';
+      if (oc) oc.style.display = 'none';
+    } else {
+      badge.textContent = 'Hors-ligne'; badge.className = 'mode-badge offline';
+      info.textContent  = 'Moteur local · Pas de connexion internet';
+      dot.style.background = '#60A5FA'; ts.textContent = 'Hors-ligne';
+      if (oc) oc.style.display = 'block';
+    }
+  }
+
+  // Vérification initiale
+  const connected = await checkConnectivity();
+  applyMode(connected);
   connectAlertsWS();
+
+  // Re-vérifier toutes les 30 secondes (reprend si connexion revenue)
+  setInterval(async () => {
+    const nowConnected = await checkConnectivity();
+    if (nowConnected !== isOnline) {
+      applyMode(nowConnected);
+      chatHistory = [];
+      appendSystem(`Connexion ${nowConnected ? 'rétablie — mode IA activé' : 'perdue — mode local activé'}`);
+      if (nowConnected) connectAlertsWS();
+    }
+  }, 30000);
 })();
 </script>
 </body>
