@@ -1,19 +1,18 @@
 """
-AgriSmart — main.py (Gemini API)
+AgriMind AI — main.py (Groq API)
 ─────────────────────────────────────────────────────────────────
 Routes :
   GET  /                    → index.html
   GET  /status              → healthcheck
-  POST /api/gemini          → proxy Gemini (chatbot + diagnostic image + intrants)
-                              body: { model?, system?, messages[], has_image? }
-                              → flash si pas d'image, pro si image détectée
-  POST /api/alert/submit    → signalement texte + GPS → Gemini Flash classifie
-                              → broadcast WebSocket
-  GET  /api/alerts          → liste alertes récentes (max 200)
+  POST /api/gemini          → proxy Groq (chatbot + diagnostic image + intrants)
+                              has_image=true  → llama-3.2-90b-vision-preview
+                              has_image=false → llama-3.3-70b-versatile
+  POST /api/alert/submit    → signalement + GPS → Groq classifie → broadcast WS
+  GET  /api/alerts          → liste alertes récentes
   WS   /ws/alerts           → push temps réel
 
-Variables Railway :
-  GEMINI_API_KEY            → clé AIza... (Google AI Studio)
+Variables Render :
+  GROQ_API_KEY              → gsk_...
 ─────────────────────────────────────────────────────────────────
 """
 
@@ -31,18 +30,18 @@ from pydantic import BaseModel
 # ══════════════════════════════════════════════════════════════════
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_BASE    = "https://generativelanguage.googleapis.com/v1beta/models"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 
-MODEL_FLASH = "gemini-2.0-flash"      # chat + alertes + intrants
-MODEL_PRO   = "gemini-2.5-pro"        # diagnostic image
+MODEL_CHAT   = "llama-3.3-70b-versatile"        # chat + alertes + intrants
+MODEL_VISION = "llama-3.2-90b-vision-preview"   # diagnostic image
 
-print("✅ Gemini API key OK" if GEMINI_API_KEY else "⚠️  GEMINI_API_KEY manquante")
+print("✅ Groq API key OK" if GROQ_API_KEY else "⚠️  GROQ_API_KEY manquante")
 
 # ══════════════════════════════════════════════════════════════════
 #  APP
 # ══════════════════════════════════════════════════════════════════
-app = FastAPI(title="AgriSmart API")
+app = FastAPI(title="AgriMind AI API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,11 +65,10 @@ async def root():
 # ══════════════════════════════════════════════════════════════════
 #  MODÈLES PYDANTIC
 # ══════════════════════════════════════════════════════════════════
-class GeminiRequest(BaseModel):
-    # messages au format Anthropic {role, content} — on convertit côté serveur
+class GroqRequest(BaseModel):
     messages:   list[Any]
     system:     Optional[str] = None
-    has_image:  bool          = False   # flag envoyé par le frontend
+    has_image:  bool          = False
     max_tokens: int           = 1000
 
 class AlertSubmit(BaseModel):
@@ -82,85 +80,86 @@ class AlertSubmit(BaseModel):
 # ══════════════════════════════════════════════════════════════════
 #  HELPERS
 # ══════════════════════════════════════════════════════════════════
+def anthropic_to_groq_messages(messages: list[Any],
+                                system: Optional[str]) -> list[dict]:
+    """
+    Convertit le format Anthropic [{role, content}] vers OpenAI/Groq.
+    Gère texte et images (base64).
+    Injecte le system prompt en tête si fourni.
+    """
+    result = []
 
-def anthropic_to_gemini_contents(messages: list[Any]) -> list[dict]:
-    """
-    Convertit le format Anthropic [{role, content}] vers le format
-    Gemini [{role, parts:[{text}|{inline_data}]}].
-    content peut être : str | list[{type,text}|{type,image,source}]
-    """
-    contents = []
+    if system:
+        result.append({"role": "system", "content": system})
+
     for m in messages:
-        role    = "user" if m.get("role") == "user" else "model"
+        role    = m.get("role", "user")
         content = m.get("content", "")
-        parts   = []
 
         if isinstance(content, str):
-            parts.append({"text": content})
+            result.append({"role": role, "content": content})
 
         elif isinstance(content, list):
+            parts = []
             for block in content:
                 if not isinstance(block, dict):
                     continue
                 btype = block.get("type", "")
 
                 if btype == "text":
-                    parts.append({"text": block.get("text", "")})
+                    parts.append({"type": "text", "text": block.get("text", "")})
 
                 elif btype == "image":
                     src = block.get("source", {})
                     if src.get("type") == "base64":
+                        mime = src.get("media_type", "image/jpeg")
+                        data = src.get("data", "")
                         parts.append({
-                            "inline_data": {
-                                "mime_type": src.get("media_type", "image/jpeg"),
-                                "data":      src.get("data", ""),
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime};base64,{data}"
                             }
                         })
 
-        if parts:
-            contents.append({"role": role, "parts": parts})
+            if parts:
+                result.append({"role": role, "content": parts})
 
-    return contents
+    return result
 
 
-async def call_gemini(model: str, contents: list[dict],
-                      system: Optional[str] = None,
-                      max_tokens: int = 1000,
-                      timeout: float = 90.0) -> tuple[int, dict]:
+async def call_groq(model: str, messages: list[dict],
+                    max_tokens: int = 1000,
+                    timeout: float = 60.0) -> tuple[int, dict]:
     """
-    Appelle l'API Gemini generateContent et retourne (status, body_dict).
-    body_dict suit le même format de réponse qu'on utilise côté client :
-      { "content": [{"type":"text","text":"..."}] }
+    Appelle Groq et retourne (status, body normalisé).
+    body normalisé : { "content": [{"type":"text","text":"..."}] }
     """
-    url = f"{GEMINI_BASE}/{model}:generateContent?key={GEMINI_API_KEY}"
-
-    payload: dict[str, Any] = {
-        "contents": contents,
-        "generationConfig": {
-            "maxOutputTokens": max_tokens,
-            "temperature": 0.4,
-        },
+    payload = {
+        "model":      model,
+        "messages":   messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.4,
     }
-    if system:
-        payload["systemInstruction"] = {"parts": [{"text": system}]}
 
     async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(url, json=payload,
-                                 headers={"Content-Type": "application/json"})
+        resp = await client.post(
+            GROQ_URL,
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type":  "application/json",
+            },
+            json=payload,
+        )
 
     raw = resp.json()
 
-    # Normaliser la réponse au format {content:[{type,text}]}
-    # pour que le frontend n'ait pas à changer
     if resp.status_code == 200:
         try:
-            text = raw["candidates"][0]["content"]["parts"][0]["text"]
+            text = raw["choices"][0]["message"]["content"]
         except (KeyError, IndexError):
             text = ""
-        normalized = {"content": [{"type": "text", "text": text}]}
-        return 200, normalized
+        return 200, {"content": [{"type": "text", "text": text}]}
     else:
-        # Retourner l'erreur Gemini telle quelle
         return resp.status_code, raw
 
 
@@ -175,47 +174,40 @@ async def broadcast(data: dict):
         active_ws.remove(ws)
 
 # ══════════════════════════════════════════════════════════════════
-#  PROXY GEMINI — chatbot + diagnostic image + intrants
+#  PROXY GROQ — chatbot + diagnostic image + intrants
+#  Route gardée /api/gemini pour ne pas changer le frontend
 # ══════════════════════════════════════════════════════════════════
 @app.post("/api/gemini")
-async def gemini_proxy(req: GeminiRequest):
-    if not GEMINI_API_KEY:
+async def groq_proxy(req: GroqRequest):
+    if not GROQ_API_KEY:
         return JSONResponse(status_code=500,
-                            content={"error": "GEMINI_API_KEY non configurée sur Railway."})
+                            content={"error": "GROQ_API_KEY non configurée sur Render."})
 
-    # Choix du modèle selon présence d'image
-    model = MODEL_PRO if req.has_image else MODEL_FLASH
+    model    = MODEL_VISION if req.has_image else MODEL_CHAT
+    messages = anthropic_to_groq_messages(req.messages, req.system)
 
-    contents = anthropic_to_gemini_contents(req.messages)
-
-    print(f"🤖 /api/gemini  model={model}  msgs={len(req.messages)}  img={'oui' if req.has_image else 'non'}")
+    print(f"🤖 /api/gemini→Groq  model={model}  msgs={len(messages)}  img={'oui' if req.has_image else 'non'}")
 
     try:
-        status, body = await call_gemini(
-            model      = model,
-            contents   = contents,
-            system     = req.system,
-            max_tokens = req.max_tokens,
-            timeout    = 120.0 if req.has_image else 60.0,
-        )
+        timeout = 90.0 if req.has_image else 60.0
+        status, body = await call_groq(model, messages, req.max_tokens, timeout)
 
         if status == 200:
-            preview = (body.get("content", [{}])[0].get("text", "")[:100]
-                       .replace("\n", " "))
-            print(f"✅ Gemini OK ({model}) → «{preview}…»")
+            preview = body["content"][0]["text"][:100].replace("\n", " ")
+            print(f"✅ Groq OK ({model}) → «{preview}…»")
         else:
-            print(f"❌ Gemini {status}: {body}")
+            print(f"❌ Groq {status}: {body}")
 
         return JSONResponse(status_code=status, content=body)
 
     except httpx.TimeoutException:
         return JSONResponse(status_code=504,
-                            content={"error": "Timeout Gemini — réessayez."})
+                            content={"error": "Timeout Groq — réessayez."})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ══════════════════════════════════════════════════════════════════
-#  ALERT SUBMIT — signalement → Gemini Flash classifie → broadcast
+#  ALERT SUBMIT
 # ══════════════════════════════════════════════════════════════════
 CLASSIFY_SYSTEM = """Tu es un système de classification d'alertes agricoles pour le Burkina Faso.
 Un agriculteur envoie un signalement en texte libre. Extrais et structure l'information.
@@ -239,9 +231,9 @@ Règles danger :
 
 @app.post("/api/alert/submit")
 async def alert_submit(payload: AlertSubmit):
-    if not GEMINI_API_KEY:
+    if not GROQ_API_KEY:
         return JSONResponse(status_code=500,
-                            content={"error": "GEMINI_API_KEY non configurée."})
+                            content={"error": "GROQ_API_KEY non configurée."})
 
     msg = payload.message.strip()
     if not msg:
@@ -253,24 +245,19 @@ async def alert_submit(payload: AlertSubmit):
         if payload.accuracy:
             gps_ctx += f" (±{payload.accuracy:.0f}m)"
 
-    contents = [{"role": "user", "parts": [
-        {"text": f"Signalement:{gps_ctx}\n\n{msg}"}
-    ]}]
+    messages = [
+        {"role": "system", "content": CLASSIFY_SYSTEM},
+        {"role": "user",   "content": f"Signalement:{gps_ctx}\n\n{msg}"}
+    ]
 
     print(f"📩 ALERT SUBMIT: «{msg[:80]}»  GPS=({payload.lat},{payload.lon})")
 
     try:
-        status, body = await call_gemini(
-            model      = MODEL_FLASH,
-            contents   = contents,
-            system     = CLASSIFY_SYSTEM,
-            max_tokens = 300,
-            timeout    = 30.0,
-        )
+        status, body = await call_groq(MODEL_CHAT, messages, 300, 30.0)
         if status != 200:
-            raise Exception(f"Gemini error {status}: {body}")
+            raise Exception(f"Groq error {status}: {body}")
 
-        raw_text = body.get("content", [{}])[0].get("text", "{}")
+        raw_text = body["content"][0]["text"]
         raw_text = raw_text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
         classification = json.loads(raw_text)
 
@@ -294,7 +281,6 @@ async def alert_submit(payload: AlertSubmit):
 
     alerts_db.appendleft(alert)
     print(f"✅ ALERT id={alert['id']}  danger={alert['danger']}  type={alert['type']}")
-
     await broadcast({"event": "new_alert", "alert": alert})
 
     return {"status": "ok", "alert": alert}
@@ -334,9 +320,9 @@ async def ws_alerts(websocket: WebSocket):
 @app.get("/status")
 async def status():
     return {
-        "gemini":       bool(GEMINI_API_KEY),
-        "model_flash":  MODEL_FLASH,
-        "model_pro":    MODEL_PRO,
+        "groq":         bool(GROQ_API_KEY),
+        "model_chat":   MODEL_CHAT,
+        "model_vision": MODEL_VISION,
         "ws_clients":   len(active_ws),
         "alerts_count": len(alerts_db),
     }
@@ -347,5 +333,5 @@ async def status():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    print(f"🚀 AgriSmart démarrage port {port}")
+    print(f"🚀 AgriMind AI démarrage port {port}")
     uvicorn.run("main:app", host="0.0.0.0", port=port)
