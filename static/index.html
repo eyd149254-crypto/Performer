@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<title>AgriSmart</title>
+<title>AgriMind AI</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 <style>
 /* ===================== BASE ===================== */
@@ -194,7 +194,7 @@ select,input[type=number],input[type=date]{width:100%;border:0.5px solid var(--b
 <!-- ======================== TOPBAR ======================== -->
 <div class="topbar">
   <div>
-    <div class="topbar-title">AgriSmart</div>
+    <div class="topbar-title">AgriMind AI</div>
     <div class="topbar-sub" id="topbarLoc">Burkina Faso</div>
   </div>
   <div class="status-wrap">
@@ -357,7 +357,7 @@ select,input[type=number],input[type=date]{width:100%;border:0.5px solid var(--b
       </button>
     </div>
     <div class="chat-messages" id="chatMessages">
-      <div class="msg msg-bot">Bonjour ! Je suis votre assistant agricole AgriSmart. Posez vos questions sur les cultures, maladies ou techniques.</div>
+      <div class="msg msg-bot">Bonjour ! Je suis votre assistant agricole AgriMind AI. Posez vos questions sur les cultures, maladies ou techniques.</div>
     </div>
     <div class="chat-input-row">
       <input class="chat-input" id="chatInput" type="text" placeholder="Posez votre question..." onkeydown="if(event.key==='Enter')sendMsg()"/>
@@ -862,7 +862,7 @@ function switchMode(checked) {
 function clearChat() {
   chatHistory = [];
   const msgs = document.getElementById('chatMessages');
-  msgs.innerHTML = '<div class="msg msg-bot">Bonjour ! Je suis votre assistant agricole AgriSmart. Posez vos questions sur les cultures, maladies ou techniques.</div>';
+  msgs.innerHTML = '<div class="msg msg-bot">Bonjour ! Je suis votre assistant agricole AgriMind AI. Posez vos questions sur les cultures, maladies ou techniques.</div>';
 }
 
 function appendSystem(txt) {
@@ -911,7 +911,7 @@ async function sendMsg() {
         body: JSON.stringify({
           has_image: false,
           max_tokens: 1000,
-          system: `Tu es AgriSmart, un assistant agricole expert spécialisé pour le Burkina Faso et l'Afrique de l'Ouest.
+          system: `Tu es AgriMind AI, un assistant agricole expert spécialisé pour le Burkina Faso et l'Afrique de l'Ouest.
 Tu aides les agriculteurs avec : maladies des plantes, engrais et intrants, irrigation, semis, rendements, météo agricole.
 Réponds toujours en français. Sois concis, pratique et adapté aux réalités burkinabè (cultures locales : maïs, mil, sorgho, riz, coton, tomate, oignon, niébé, arachide).
 Mentionne les produits disponibles localement et les techniques adaptées au Sahel.
