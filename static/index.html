@@ -1,0 +1,2597 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>AgriSmart</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<style>
+/* ===================== BASE ===================== */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#2D6A4F;--green-l:#52B788;--green-xl:#D8F3DC;
+  --amber:#B45309;--amber-l:#F59E0B;--amber-xl:#FEF3C7;
+  --red:#991B1B;--red-l:#EF4444;--red-xl:#FEE2E2;
+  --blue:#1E40AF;--blue-l:#3B82F6;--blue-xl:#DBEAFE;
+  --bg:#ffffff;--bg2:#f5f5f4;--bg3:#e8e8e4;
+  --txt:#1a1a1a;--txt2:#6b7280;--brd:rgba(0,0,0,0.1);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+  --txt:#f5f5f5;--txt2:#9ca3af;--brd:rgba(255,255,255,0.1);
+  --green-xl:#0d2e1f;--amber-xl:#2d1a00;--red-xl:#2d0d0d;--blue-xl:#0d1a3a;
+}}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3)}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;height:100dvh;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.15)}
+
+/* ===================== TOPBAR ===================== */
+.topbar{background:var(--green);padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-title{color:#fff;font-size:17px;font-weight:600}
+.topbar-sub{color:rgba(255,255,255,.65);font-size:11px;margin-top:1px}
+.status-wrap{display:flex;align-items:center;gap:6px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#4ADE80;flex-shrink:0;transition:background .3s}
+.status-wrap span{font-size:11px;color:rgba(255,255,255,.7)}
+
+/* ===================== LAYOUT ===================== */
+.content{flex:1;overflow-y:auto;overflow-x:hidden}
+.tab-content{display:none;padding:16px;flex-direction:column;gap:14px}
+.tab-content.active{display:flex}
+.bottomnav{background:var(--bg);border-top:0.5px solid var(--brd);display:flex;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,0)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;cursor:pointer;border:none;background:none;color:var(--txt2);font-size:10px;gap:4px;position:relative}
+.nav-item i{font-size:22px;line-height:1}
+.nav-item.active{color:var(--green)}
+.nav-item.active::after{content:'';position:absolute;top:0;left:25%;width:50%;height:2px;background:var(--green);border-radius:0 0 2px 2px}
+
+/* ===================== COMPOSANTS ===================== */
+.card{background:var(--bg);border:0.5px solid var(--brd);border-radius:12px;padding:14px 16px}
+.section-label{font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px}
+.badge-green{background:var(--green-xl);color:#1B4332}
+.badge-amber{background:var(--amber-xl);color:#78350F}
+.badge-red{background:var(--red-xl);color:#7F1D1D}
+.badge-blue{background:var(--blue-xl);color:#1E3A8A}
+.btn-primary{background:var(--green);color:#fff;border:none;border-radius:8px;padding:12px 16px;font-size:14px;font-weight:500;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-secondary{background:var(--bg2);color:var(--txt);border:0.5px solid var(--brd);border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:6px}
+select,input[type=number],input[type=date]{width:100%;border:0.5px solid var(--brd);border-radius:8px;padding:9px 10px;font-size:13px;background:var(--bg);color:var(--txt);outline:none}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field label{font-size:12px;color:var(--txt2);display:block;margin-bottom:4px}
+
+/* ===================== TAB DIAGNOSTIC ===================== */
+.img-upload-zone{border:1.5px dashed var(--brd);border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;background:var(--bg2);display:flex;flex-direction:column;align-items:center;gap:8px}
+.img-upload-zone i{font-size:36px;color:var(--green-l)}
+.img-upload-zone p{font-size:13px;color:var(--txt2)}
+.img-upload-zone small{font-size:11px;color:var(--txt2);opacity:.7}
+.disease-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--brd);cursor:pointer}
+.disease-item:last-child{border-bottom:none}
+.disease-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.disease-name{font-size:13px;font-weight:500;color:var(--txt)}
+.disease-meta{font-size:11px;color:var(--txt2);margin-top:2px}
+
+/* ===================== TAB CHATBOT ===================== */
+.quick-chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--bg2);border:0.5px solid var(--brd);border-radius:20px;padding:6px 12px;font-size:12px;color:var(--txt2);cursor:pointer}
+.chip:hover{background:var(--green-xl);color:#1B4332;border-color:var(--green-l)}
+.chat-messages{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;max-height:300px;overflow-y:auto}
+.msg{max-width:88%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.5}
+.msg-bot{background:var(--bg2);color:var(--txt);border-radius:14px 14px 14px 4px;align-self:flex-start}
+.msg-user{background:var(--green);color:#fff;border-radius:14px 14px 4px 14px;align-self:flex-end}
+.msg-offline{background:var(--blue-xl);color:#1E3A8A;border-radius:14px 14px 14px 4px;align-self:flex-start}
+.msg-system{background:var(--bg3);color:var(--txt2);border-radius:8px;align-self:center;font-size:11px;padding:5px 10px;text-align:center}
+.chat-input-row{display:flex;gap:8px;align-items:center}
+.chat-input{flex:1;border:0.5px solid var(--brd);border-radius:20px;padding:9px 14px;font-size:13px;background:var(--bg);color:var(--txt);outline:none}
+.chat-send{width:36px;height:36px;border-radius:50%;background:var(--green);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.source-tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 6px;border-radius:10px;margin-top:5px}
+.source-online{background:var(--green-xl);color:#1B4332}
+.source-offline{background:var(--blue-xl);color:#1E3A8A}
+/* Toggle mode */
+.mode-toggle-wrap{background:var(--bg2);border:0.5px solid var(--brd);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mode-left{flex:1}
+.mode-label-row{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.mode-label-row span{font-size:13px;font-weight:500;color:var(--txt)}
+.mode-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.4px;transition:all .25s}
+.mode-badge.online{background:var(--green-xl);color:#1B4332}
+.mode-badge.offline{background:var(--blue-xl);color:#1E3A8A}
+.mode-info{font-size:11px;color:var(--txt2);line-height:1.4}
+.toggle-switch{position:relative;width:46px;height:26px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-slider{position:absolute;inset:0;background:var(--brd);border-radius:13px;cursor:pointer;transition:.25s;border:0.5px solid var(--brd)}
+.toggle-slider::before{content:'';position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-switch input:checked + .toggle-slider{background:var(--green);border-color:var(--green)}
+.toggle-switch input:checked + .toggle-slider::before{transform:translateX(20px)}
+.offline-info-card{background:var(--blue-xl);border:0.5px solid rgba(59,130,246,.3);border-radius:10px;padding:10px 14px}
+.offline-info-card .title-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.offline-info-card .title-row span{font-size:13px;font-weight:500;color:#1E3A8A}
+.offline-info-card p{font-size:11px;color:#1E40AF;line-height:1.5}
+/* Thinking dots */
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.thinking-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--txt2);margin:0 1px;animation:blink 1.2s infinite}
+.thinking-dots span:nth-child(2){animation-delay:.2s}
+.thinking-dots span:nth-child(3){animation-delay:.4s}
+
+/* ===================== TAB ALERTES ===================== */
+.alert-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:8px;margin-bottom:8px}
+.alert-high{background:var(--red-xl);border-left:3px solid var(--red-l)}
+.alert-med{background:var(--amber-xl);border-left:3px solid var(--amber-l)}
+.alert-low{background:var(--green-xl);border-left:3px solid var(--green-l)}
+.alert-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.alert-title{font-size:13px;font-weight:500;color:var(--txt)}
+.alert-desc{font-size:11px;color:var(--txt2);margin-top:3px;line-height:1.4}
+.alert-time{font-size:10px;color:var(--txt2);margin-top:4px}
+
+/* ===================== TAB ESTIMATION ===================== */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-card{background:var(--bg2);border-radius:8px;padding:12px}
+.stat-val{font-size:22px;font-weight:600;color:var(--txt)}
+.stat-lbl{font-size:11px;color:var(--txt2);margin-top:3px}
+.factor-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid var(--brd)}
+.factor-row:last-child{border-bottom:none}
+.factor-name{font-size:12px;color:var(--txt);flex:1}
+.factor-bar-wrap{width:80px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin:0 10px;flex-shrink:0}
+.factor-bar{height:100%;border-radius:3px;transition:width .5s}
+.factor-val{font-size:12px;font-weight:500;color:var(--txt);min-width:32px;text-align:right}
+.weather-strip{background:var(--bg2);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.weather-strip i{font-size:22px;color:var(--green-l)}
+.weather-info{flex:1}
+.weather-info strong{font-size:13px;color:var(--txt);display:block}
+.weather-info span{font-size:11px;color:var(--txt2)}
+.tip-card{border-radius:10px;padding:10px 12px;border:0.5px solid transparent;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start}
+.tip-card i{font-size:16px;flex-shrink:0;margin-top:1px}
+.tip-title{font-size:12px;font-weight:500;margin-bottom:2px}
+.tip-text{font-size:11px;line-height:1.5}
+.progress-wrap{margin:8px 0 4px}
+.progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--txt2);margin-bottom:5px}
+.progress-bar-bg{height:7px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;transition:width .6s}
+.source-note{font-size:10px;color:var(--txt2);display:flex;align-items:center;gap:4px;margin-top:6px}
+.est-spinner{display:flex;align-items:center;gap:8px;color:var(--txt2);font-size:12px}
+.spinner-sm{width:16px;height:16px;border:2px solid var(--brd);border-top-color:var(--green-l);border-radius:50%;animation:spin .7s linear infinite}
+
+/* ===================== TAB MÉTÉO ===================== */
+.weather-header{background:var(--green);border-radius:12px;padding:20px 16px;color:#fff;display:flex;align-items:center;justify-content:space-between}
+.weather-temp{font-size:42px;font-weight:600;line-height:1}
+.weather-desc{font-size:13px;opacity:.85;margin-top:4px;text-transform:capitalize}
+.weather-city{font-size:12px;opacity:.7;margin-top:2px}
+.weather-icon-lg{font-size:52px;opacity:.9}
+.weather-details{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+.weather-detail{background:var(--bg2);border-radius:8px;padding:10px;text-align:center}
+.weather-detail i{font-size:18px;color:var(--green-l);display:block;margin-bottom:4px}
+.weather-detail span{font-size:11px;color:var(--txt2);display:block}
+.weather-detail strong{font-size:13px;color:var(--txt)}
+.conseil-card{border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start;border:0.5px solid transparent}
+.conseil-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.conseil-text{font-size:12px;line-height:1.6}
+.loading-meteo{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 16px;gap:12px;color:var(--txt2);font-size:13px}
+.spinner{width:28px;height:28px;border:3px solid var(--brd);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Rain chart */
+.rain-chart-wrap{overflow-x:auto;padding-bottom:4px}
+.rain-chart{display:flex;align-items:flex-end;gap:3px;height:80px;min-width:max-content;padding:0 2px}
+.rain-bar-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:28px}
+.rain-bar{width:20px;border-radius:3px 3px 0 0;min-height:2px;transition:height .3s}
+.rain-bar.high{background:#1E40AF}
+.rain-bar.medium{background:#3B82F6}
+.rain-bar.low{background:#93C5FD}
+.rain-bar.none{background:var(--bg3);min-height:4px}
+.rain-label{font-size:9px;color:var(--txt2);text-align:center;line-height:1.2}
+.rain-mm{font-size:9px;color:var(--txt2);text-align:center}
+/* Saison */
+.saison-indicator{border-radius:12px;padding:16px}
+.saison-indicator h3{font-size:14px;font-weight:600;margin-bottom:4px}
+.saison-indicator p{font-size:12px;line-height:1.5;opacity:.9}
+.saison-progress-wrap{margin-top:12px}
+.saison-progress-label{display:flex;justify-content:space-between;font-size:10px;opacity:.8;margin-bottom:4px}
+.saison-progress-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.25);overflow:hidden}
+.saison-progress-fill{height:100%;border-radius:3px;background:#fff;transition:width .6s}
+.saison-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--brd)}
+.saison-item:last-child{border-bottom:none}
+.saison-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.saison-name{font-size:13px;font-weight:500;color:var(--txt);flex:1}
+.saison-period{font-size:11px;color:var(--txt2)}
+</style>
+</head>
+<body>
+
+<!-- ======================== TOPBAR ======================== -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title">AgriSmart</div>
+    <div class="topbar-sub" id="topbarLoc">Burkina Faso</div>
+  </div>
+  <div class="status-wrap">
+    <div class="status-dot" id="topDot"></div>
+    <span id="topStatus">En ligne</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ======================== TAB DIAGNOSTIC ======================== -->
+<div class="tab-content active" id="tab-detection">
+
+  <!-- Step 1 : photo + crop -->
+  <div class="card" id="diag-input-card">
+    <div class="section-label" style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+      <i class="ti ti-scan" style="font-size:14px;color:var(--green-l)"></i>
+      Diagnostic de maladie
+    </div>
+
+    <!-- Crop selector -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--txt2);font-weight:600;margin-bottom:4px">Culture photographiée</div>
+      <select id="diag-crop-select" style="font-size:13px">
+        <option value="maize">🌽 Maïs</option>
+        <option value="pearl_millet">🌾 Mil</option>
+        <option value="sorghum">🌾 Sorgho</option>
+        <option value="rice">🌾 Riz</option>
+        <option value="tomato">🍅 Tomate</option>
+        <option value="onion">🧅 Oignon</option>
+        <option value="cotton">🌿 Coton</option>
+      </select>
+    </div>
+
+    <!-- Photo zone -->
+    <div class="img-upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" style="margin-bottom:10px">
+      <i class="ti ti-camera" id="uploadIcon"></i>
+      <p id="uploadLabel">Prendre une photo ou importer</p>
+      <small>Photographiez la feuille ou tige affectée</small>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(this)"/>
+    <img id="previewImg" style="display:none;width:100%;border-radius:10px;max-height:220px;object-fit:cover;margin-bottom:10px" alt="preview"/>
+
+    <!-- Extraction progress (hidden until photo chosen) -->
+    <div id="extraction-progress" style="display:none;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:5px" id="extraction-step">Extraction des pixels…</div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div id="extraction-bar" style="height:100%;width:0%;background:var(--green-l);border-radius:3px;transition:width .3s"></div>
+      </div>
+    </div>
+
+    <!-- JSON preview (collapsible, for transparency) -->
+    <div id="json-preview-wrap" style="display:none;margin-bottom:10px">
+      <div onclick="toggleJsonPreview()" style="cursor:pointer;font-size:11px;color:var(--txt2);font-weight:600;display:flex;align-items:center;gap:5px;padding:6px 0">
+        <i class="ti ti-code" style="font-size:13px"></i>
+        Features extraites <i class="ti ti-chevron-down" id="json-chevron" style="font-size:12px;margin-left:auto"></i>
+      </div>
+      <textarea id="jsonInput" rows="5" readonly style="display:none;font-size:10px;font-family:monospace;resize:none;border-radius:9px;padding:8px 10px;border:1px solid var(--brd);background:var(--bg3);color:var(--txt2);width:100%"></textarea>
+    </div>
+
+    <button class="btn-primary" id="diag-btn" onclick="runDiagnosis()" disabled style="opacity:.4">
+      <i class="ti ti-microscope"></i>Lancer le diagnostic
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div id="diag-loading" style="display:none;text-align:center;padding:24px">
+    <div class="spinner" style="margin:0 auto 10px;width:28px;height:28px;border-width:2.5px"></div>
+    <div id="diag-loading-msg" style="font-size:13px;color:var(--txt2)">Analyse en cours…</div>
+  </div>
+
+  <!-- Results -->
+  <div id="diag-results" style="display:none">
+
+    <!-- Metadata bar -->
+    <div id="diag-meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px"></div>
+
+    <!-- Top diagnosis cards -->
+    <div class="section-label" style="margin-top:6px">Résultats du diagnostic</div>
+    <div id="diag-cards"></div>
+
+    <!-- Feature radar summary -->
+    <div class="card" id="diag-features-card">
+      <div class="section-label" style="margin-bottom:10px">Indicateurs extraits</div>
+      <div id="diag-feature-bars"></div>
+    </div>
+
+    <!-- AI deep analysis -->
+    <div class="card" id="diag-ai-card" style="display:none">
+      <div class="section-label" style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <i class="ti ti-sparkles" style="font-size:14px;color:var(--green-l)"></i>
+        Analyse approfondie — IA
+      </div>
+      <div id="diag-ai-text" style="font-size:13px;line-height:1.65;color:var(--txt)"></div>
+    </div>
+
+    <button class="btn-secondary" onclick="resetDiagnosis()" style="margin-top:4px">
+      <i class="ti ti-refresh"></i>Nouvelle analyse
+    </button>
+  </div>
+
+  <!-- Common diseases (shown when idle) -->
+  <div class="card" id="diag-common-card">
+    <div class="section-label">Maladies fréquentes</div>
+    <div class="disease-item">
+      <div class="disease-icon" style="background:var(--amber-xl)">🌽</div>
+      <div style="flex:1"><div class="disease-name">Rouille du maïs</div><div class="disease-meta">Puccinia sorghi · Taches orangées</div></div>
+      <span class="badge badge-amber">Modérée</span>
+    </div>
+    <div class="disease-item">
+      <div class="disease-icon" style="background:var(--red-xl)">🍅</div>
+      <div style="flex:1"><div class="disease-name">Mildiou de la tomate</div><div class="disease-meta">Phytophthora · Feuilles brunes</div></div>
+      <span class="badge badge-red">Élevée</span>
+    </div>
+    <div class="disease-item">
+      <div class="disease-icon" style="background:var(--green-xl)">🌾</div>
+      <div style="flex:1"><div class="disease-name">Charbon du sorgho</div><div class="disease-meta">Sporisorium · Épis noirs</div></div>
+      <span class="badge badge-green">Faible</span>
+    </div>
+    <div class="disease-item" style="border-bottom:none">
+      <div class="disease-icon" style="background:var(--blue-xl)">🌿</div>
+      <div style="flex:1"><div class="disease-name">Chenilles légionnaires</div><div class="disease-meta">Spodoptera frugiperda · Trous foliaires</div></div>
+      <span class="badge badge-red">Élevée</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======================== TAB CHATBOT ======================== -->
+<div class="tab-content" id="tab-chatbot">
+
+  <div class="mode-toggle-wrap">
+    <div class="mode-left">
+      <div class="mode-label-row">
+        <i class="ti ti-brain" style="font-size:16px;color:var(--green)"></i>
+        <span>Mode assistant</span>
+        <span class="mode-badge online" id="modeBadge">En ligne</span>
+      </div>
+      <div class="mode-info" id="modeInfo">Réponses via IA Gemini · Nécessite connexion internet</div>
+    </div>
+    <label class="toggle-switch">
+      <input type="checkbox" id="modeToggle" checked onchange="switchMode(this.checked)"/>
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <div class="quick-chips">
+    <div class="chip" onclick="insertChip(this)">Quel engrais pour le maïs ?</div>
+    <div class="chip" onclick="insertChip(this)">Quand irriguer ?</div>
+    <div class="chip" onclick="insertChip(this)">Feuilles jaunes pourquoi ?</div>
+    <div class="chip" onclick="insertChip(this)">Traitement chenilles ?</div>
+    <div class="chip" onclick="insertChip(this)">Rendement mil ?</div>
+  </div>
+
+  <div class="card" style="padding:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--txt2);font-weight:500">Conversation</div>
+      <button onclick="clearChat()" style="background:none;border:0.5px solid var(--brd);border-radius:6px;padding:3px 10px;font-size:11px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:4px">
+        <i class="ti ti-trash" style="font-size:12px"></i>Effacer
+      </button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg msg-bot">Bonjour ! Je suis votre assistant agricole AgriSmart. Posez vos questions sur les cultures, maladies ou techniques.</div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" type="text" placeholder="Posez votre question..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+      <button class="chat-send" onclick="sendMsg()"><i class="ti ti-send"></i></button>
+    </div>
+  </div>
+
+  <div class="offline-info-card" id="offlineCard" style="display:none">
+    <div class="title-row">
+      <i class="ti ti-database" style="font-size:15px;color:#1E40AF"></i>
+      <span>Base locale active</span>
+    </div>
+    <p>Moteur : recherche par mots-clés · base_connaissances.json<br/>12 entrées · maladies, engrais, irrigation, semis</p>
+  </div>
+
+</div>
+
+<!-- ======================== TAB ALERTES ======================== -->
+<div class="tab-content" id="tab-alertes">
+
+  <!-- Statut connexion -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div id="alert-ws-dot" style="width:8px;height:8px;border-radius:50%;background:var(--txt2);flex-shrink:0;transition:background .3s"></div>
+      <span id="alert-ws-label" style="font-size:11px;color:var(--txt2)">Connexion…</span>
+    </div>
+    <span id="alert-count-badge" style="font-size:11px;color:var(--txt2)"></span>
+  </div>
+
+  <!-- Filtres dangerosité -->
+  <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px" id="alert-filters">
+    <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--txt);color:var(--bg);border:none;border-radius:20px" data-danger="tous" onclick="setAlertFilter('tous',this)">Tous</button>
+    <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-danger="critique" onclick="setAlertFilter('critique',this)">🔴 Critique</button>
+    <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-danger="eleve" onclick="setAlertFilter('eleve',this)">🟠 Élevé</button>
+    <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-danger="modere" onclick="setAlertFilter('modere',this)">🟡 Modéré</button>
+    <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-danger="faible" onclick="setAlertFilter('faible',this)">🟢 Faible</button>
+  </div>
+
+  <!-- Liste alertes -->
+  <div id="alerts-list">
+    <div style="text-align:center;padding:40px 16px;color:var(--txt2)">
+      <div class="spinner" style="margin:0 auto 12px;width:24px;height:24px;border-width:2px"></div>
+      <div style="font-size:13px">Chargement des alertes…</div>
+    </div>
+  </div>
+
+  <!-- Bouton signaler -->
+  <button class="btn-primary" onclick="openAlertModal()" style="position:sticky;bottom:12px;margin-top:8px">
+    <i class="ti ti-alert-triangle"></i>Signaler une alerte
+  </button>
+
+</div>
+
+<!-- ======================== MODAL SIGNALEMENT ======================== -->
+<div id="alert-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:flex-end;justify-content:center">
+  <div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:600;color:var(--txt)">Signaler une alerte</div>
+      <button onclick="closeAlertModal()" style="background:none;border:none;font-size:22px;color:var(--txt2);cursor:pointer;line-height:1">×</button>
+    </div>
+
+    <!-- GPS status -->
+    <div id="gps-status" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:var(--bg2);margin-bottom:12px;font-size:12px;color:var(--txt2)">
+      <div class="spinner" style="width:14px;height:14px;border-width:2px;flex-shrink:0"></div>
+      <span id="gps-label">Détection GPS en cours…</span>
+    </div>
+
+    <!-- Description -->
+    <div class="field" style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:5px">Décrivez ce que vous observez</label>
+      <textarea id="alert-msg" rows="4" placeholder="Ex : J'ai remarqué des taches orangées sur les feuilles de mon maïs à Koudougou, beaucoup de plants sont touchés…" style="width:100%;border:0.5px solid var(--brd);border-radius:10px;padding:10px 12px;font-size:13px;background:var(--bg);color:var(--txt);outline:none;resize:none;font-family:inherit"></textarea>
+    </div>
+
+    <!-- Bouton envoyer -->
+    <button class="btn-primary" onclick="submitAlert()" id="alert-submit-btn">
+      <i class="ti ti-send"></i>Envoyer le signalement
+    </button>
+
+    <!-- Résultat -->
+    <div id="alert-submit-result" style="display:none;margin-top:12px;padding:12px;border-radius:10px;font-size:13px;line-height:1.5"></div>
+
+  </div>
+</div>
+
+<!-- ======================== TAB ESTIMATION ======================== -->
+<div class="tab-content" id="tab-estimation">
+
+  <!-- Résultats en haut -->
+  <div class="stat-row" id="est-results">
+    <div class="stat-card"><div class="stat-val" id="est-rend" style="color:var(--green)">--</div><div class="stat-lbl">t/ha prédit</div></div>
+    <div class="stat-card"><div class="stat-val" id="est-total" style="color:#0369A1">--</div><div class="stat-lbl">production totale</div></div>
+    <div class="stat-card"><div class="stat-val" id="est-fourchette" style="font-size:13px;color:var(--amber)">--</div><div class="stat-lbl">fourchette ±15%</div></div>
+    <div class="stat-card"><div id="est-conf">--</div><div class="stat-lbl">confiance</div></div>
+  </div>
+
+  <!-- Formulaire paramètres -->
+  <div class="card">
+    <div class="section-label">Paramètres de la parcelle</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+
+      <div class="row2">
+        <div class="field"><label>Culture</label>
+          <select id="culture" onchange="onCultureChange()">
+            <option value="mais">Maïs</option>
+            <option value="mil">Mil</option>
+            <option value="sorgho">Sorgho</option>
+            <option value="riz">Riz (irrigué)</option>
+            <option value="tomate">Tomate</option>
+            <option value="oignon">Oignon</option>
+            <option value="coton">Coton</option>
+          </select>
+        </div>
+        <div class="field"><label>Surface (ha)</label>
+          <input type="number" id="surface" value="1" min="0.1" step="0.1"/>
+        </div>
+      </div>
+
+      <div class="field"><label>Variété</label>
+        <select id="variete"></select>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label>Engrais utilisé</label>
+          <select id="engrais">
+            <option value="aucun">Aucun</option>
+            <option value="fumure">Fumure organique seule</option>
+            <option value="npk">NPK 14-23-14 (50 kg/ha)</option>
+            <option value="npk_uree" selected>NPK + Urée (dose std)</option>
+            <option value="npk_uree_fort">NPK + Urée (dose haute)</option>
+          </select>
+        </div>
+        <div class="field"><label>Source d'eau</label>
+          <select id="eau">
+            <option value="pluie" selected>Pluie seulement</option>
+            <option value="suppl">Pluie + irrigation d'appoint</option>
+            <option value="irrig">Irrigation complète</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label>État sanitaire</label>
+          <select id="sante">
+            <option value="bon" selected>Bon (pas de maladie)</option>
+            <option value="moyen">Moyen (maladie légère)</option>
+            <option value="mauvais">Mauvais (maladie sévère)</option>
+          </select>
+        </div>
+        <div class="field"><label>Type de sol</label>
+          <select id="sol">
+            <option value="limon" selected>Limoneux (idéal)</option>
+            <option value="argile">Argileux</option>
+            <option value="sable">Sableux</option>
+            <option value="laterite">Latéritique</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field"><label>Date de semis prévue</label>
+        <input type="date" id="semis"/>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Météo pour estimation -->
+  <div class="card" id="est-meteo-card">
+    <div class="section-label">Données météo <span id="est-meteo-status" style="font-size:10px;font-weight:400;color:var(--txt2);text-transform:none;letter-spacing:0">— chargement…</span></div>
+    <div id="est-meteo-content">
+      <div class="est-spinner"><div class="spinner-sm"></div>Récupération des précipitations (90 jours) via Open-Meteo…</div>
+    </div>
+  </div>
+
+  <button class="btn-primary" onclick="calculerEstimation()"><i class="ti ti-calculator"></i>Calculer le rendement prédit</button>
+
+  <!-- Décomposition facteurs -->
+  <div class="card" id="est-factors-card" style="display:none">
+    <div class="section-label">Décomposition des facteurs</div>
+    <div id="factors-list"></div>
+    <div class="source-note"><i class="ti ti-info-circle" style="font-size:12px"></i>Formule : R_base × f_variété × f_pluie × f_engrais × f_eau × f_santé × f_sol</div>
+  </div>
+
+  <!-- Pluviométrie -->
+  <div class="card" id="est-rain-card" style="display:none">
+    <div class="section-label">Pluviométrie utilisée</div>
+    <div id="rain-summary-est"></div>
+  </div>
+
+  <!-- Recommandations -->
+  <div class="card" id="est-tips-card" style="display:none">
+    <div class="section-label">Recommandations</div>
+    <div id="tips-list"></div>
+    <div class="source-note" style="margin-top:8px"><i class="ti ti-info-circle" style="font-size:12px"></i>Estimation indicative · Données météo réelles Open-Meteo · Coefficients agronomiques Burkina Faso</div>
+  </div>
+
+</div>
+
+<!-- ======================== TAB MÉTÉO ======================== -->
+<div class="tab-content" id="tab-meteo">
+  <div id="meteo-loading" class="loading-meteo">
+    <div class="spinner"></div>
+    Récupération de la météo…
+  </div>
+  <div id="meteo-content" style="display:none;flex-direction:column;gap:14px">
+    <div class="weather-header">
+      <div>
+        <div class="weather-temp"><span id="w-temp">--</span>°C</div>
+        <div class="weather-desc" id="w-desc">--</div>
+        <div class="weather-city" id="w-city">--</div>
+        <div style="margin-top:8px">
+          <span class="badge" style="background:rgba(255,255,255,.2);color:#fff;font-size:11px">
+            <i class="ti ti-droplet" style="font-size:12px"></i><span id="w-rain-txt">--</span>
+          </span>
+        </div>
+      </div>
+      <i class="ti weather-icon-lg" id="w-icon"></i>
+    </div>
+    <div class="weather-details">
+      <div class="weather-detail"><i class="ti ti-droplet"></i><strong id="w-humidity">--%</strong><span>Humidité</span></div>
+      <div class="weather-detail"><i class="ti ti-wind"></i><strong id="w-wind">-- km/h</strong><span>Vent</span></div>
+      <div class="weather-detail"><i class="ti ti-temperature"></i><strong id="w-feels">--°C</strong><span>Ressenti</span></div>
+    </div>
+    <div class="conseil-card" id="conseil-card">
+      <i class="ti" id="conseil-icon" style="font-size:18px;flex-shrink:0;margin-top:1px"></i>
+      <div><div class="conseil-title" id="conseil-title"></div><div class="conseil-text" id="conseil-text"></div></div>
+    </div>
+    <div class="card">
+      <div class="section-label">Précipitations — 16 prochains jours</div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:10px" id="rain-total-label"></div>
+      <div class="rain-chart-wrap"><div class="rain-chart" id="rain-chart"></div></div>
+      <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:#1E40AF"></div><span style="font-size:10px;color:var(--txt2)">>10 mm</span></div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:#3B82F6"></div><span style="font-size:10px;color:var(--txt2)">5–10 mm</span></div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:#93C5FD"></div><span style="font-size:10px;color:var(--txt2)">&lt;5 mm</span></div>
+      </div>
+    </div>
+    <div class="saison-indicator" id="saison-indicator">
+      <i class="ti" id="saison-icon" style="font-size:20px;margin-bottom:8px;display:block"></i>
+      <h3 id="saison-title"></h3>
+      <p id="saison-desc" style="margin-top:4px"></p>
+      <div class="saison-progress-wrap" id="saison-progress-wrap" style="display:none">
+        <div class="saison-progress-label"><span id="saison-prog-start"></span><span id="saison-prog-pct"></span><span id="saison-prog-end"></span></div>
+        <div class="saison-progress-bar"><div class="saison-progress-fill" id="saison-prog-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label">Calendrier agricole Burkina</div>
+      <div class="saison-item"><div class="saison-dot" style="background:#3B82F6"></div><div class="saison-name">Saison des pluies (hivernage)</div><div class="saison-period">Juin – Septembre</div></div>
+      <div class="saison-item"><div class="saison-dot" style="background:#F59E0B"></div><div class="saison-name">Saison sèche chaude</div><div class="saison-period">Mars – Mai</div></div>
+      <div class="saison-item"><div class="saison-dot" style="background:#8B5CF6"></div><div class="saison-name">Saison sèche fraîche</div><div class="saison-period">Novembre – Février</div></div>
+    </div>
+    <button class="btn-secondary" onclick="loadMeteo()"><i class="ti ti-refresh"></i>Actualiser</button>
+  </div>
+  <div id="meteo-error" style="display:none">
+    <div class="card" style="text-align:center;padding:32px 16px">
+      <i class="ti ti-cloud-off" style="font-size:36px;color:var(--txt2);display:block;margin-bottom:12px"></i>
+      <div style="font-size:13px;font-weight:500;color:var(--txt);margin-bottom:6px">Impossible de récupérer la météo</div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:16px" id="meteo-error-msg"></div>
+      <button class="btn-primary" onclick="loadMeteo()"><i class="ti ti-refresh"></i>Réessayer</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ======================== TAB INTRANTS ======================== -->
+<div class="tab-content" id="tab-intrants">
+
+  <!-- AI Conseiller -->
+  <div class="card" id="intrant-ai-card">
+    <div class="section-label" style="display:flex;align-items:center;gap:6px">
+      <i class="ti ti-sparkles" style="font-size:14px;color:var(--green-l)"></i>
+      Conseiller IA — Recommandations personnalisées
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <select id="ai-culture" style="flex:1;min-width:110px">
+        <option value="">Culture…</option>
+        <option>Maïs</option><option>Mil</option><option>Sorgho</option>
+        <option>Niébé</option><option>Arachide</option><option>Coton</option>
+        <option>Tomate</option><option>Riz</option><option>Oignon</option>
+      </select>
+      <select id="ai-budget" style="flex:1;min-width:110px">
+        <option value="">Budget…</option>
+        <option value="faible">Faible (&lt; 25 000 F)</option>
+        <option value="moyen">Moyen (25–80 000 F)</option>
+        <option value="eleve">Élevé (&gt; 80 000 F)</option>
+      </select>
+    </div>
+    <button class="btn-primary" style="margin-top:10px;width:100%" onclick="getAIRecommendation()">
+      <i class="ti ti-stars"></i>Obtenir une recommandation
+    </button>
+    <div id="ai-result" style="display:none;margin-top:12px;padding:12px;background:var(--bg2);border-radius:10px;border-left:3px solid var(--green-l);font-size:13px;line-height:1.65;color:var(--txt)"></div>
+    <div id="ai-loading" style="display:none;padding:14px 0;text-align:center">
+      <div class="spinner" style="margin:0 auto 8px;width:24px;height:24px;border-width:2px"></div>
+      <div style="font-size:12px;color:var(--txt2)">Analyse en cours…</div>
+    </div>
+  </div>
+
+  <!-- Filtres & Recherche -->
+  <div class="card" style="padding:10px 12px 8px">
+    <div style="position:relative;margin-bottom:10px">
+      <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--txt2)"></i>
+      <input type="text" id="intrants-search" placeholder="Rechercher produit, marque, culture…" style="padding-left:32px;font-size:13px" oninput="renderIntrants()">
+    </div>
+    <div style="display:flex;overflow-x:auto;gap:6px;padding-bottom:4px" id="intrants-filters">
+      <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--green);color:#fff;border:none;border-radius:20px" data-cat="tous" onclick="setIntrantFilter('tous',this)">Tous</button>
+      <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-cat="engrais" onclick="setIntrantFilter('engrais',this)">🌱 Engrais</button>
+      <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-cat="pesticide" onclick="setIntrantFilter('pesticide',this)">🐛 Pesticides</button>
+      <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-cat="fongicide" onclick="setIntrantFilter('fongicide',this)">🍄 Fongicides</button>
+      <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-cat="herbicide" onclick="setIntrantFilter('herbicide',this)">🌾 Herbicides</button>
+      <button class="badge" style="flex-shrink:0;cursor:pointer;padding:5px 12px;font-size:12px;background:var(--bg3);color:var(--txt);border:none;border-radius:20px" data-cat="semence" onclick="setIntrantFilter('semence',this)">🌰 Semences</button>
+    </div>
+  </div>
+
+  <div id="intrants-list"></div>
+  <div style="text-align:center;font-size:11px;color:var(--txt2);padding:8px 0">
+    📅 Prix indicatifs — Campagne 2024/2025 · DGESS/MASA Burkina Faso
+  </div>
+
+</div>
+
+</div><!-- /content -->
+
+<!-- ======================== BOTTOM NAV ======================== -->
+<nav class="bottomnav">
+  <button class="nav-item active" onclick="switchTab('detection',this)"><i class="ti ti-camera"></i>Diagnostic</button>
+  <button class="nav-item" onclick="switchTab('chatbot',this)"><i class="ti ti-message-chatbot"></i>Assistant</button>
+  <button class="nav-item" onclick="switchTab('alertes',this)"><i class="ti ti-bell"></i>Alertes</button>
+  <button class="nav-item" onclick="switchTab('estimation',this)"><i class="ti ti-chart-bar"></i>Estimation</button>
+  <button class="nav-item" onclick="switchTab('meteo',this)"><i class="ti ti-cloud"></i>Météo</button>
+  <button class="nav-item" onclick="switchTab('intrants',this)"><i class="ti ti-shopping-cart"></i>Intrants</button>
+</nav>
+
+<script>
+/* ================================================================
+   CONSTANTES MÉTÉO / NAVIGATION
+   ================================================================ */
+const OW_KEY = 'd2b5ba7eafeb352682017642720c339f';
+const NORMALES_MM = [3,5,10,20,60,89,168,210,130,50,8,3];
+const DEBUT_SAISON = 5, FIN_SAISON = 8;
+
+/* ================================================================
+   BASE DE CONNAISSANCES OFFLINE (miroir de base_connaissances.json)
+   ================================================================ */
+const BASE = [
+  {id:"MAL001",type:"maladie",titre:"Rouille du maïs",cultures:["Maïs"],risque:"Modéré",mots_cles:["rouille","maïs","orange","taches","puccinia","feuille","poudre"],symptomes:["Taches orangées ou brun-rouille sur les feuilles","Pustules poudreuses visibles à l'œil nu","Jaunissement progressif du limbe","Feuilles inférieures touchées en premier"],cause:"Champignon Puccinia sorghi, favorisé par humidité élevée et 16–23°C",traitement:"Fongicide mancozèbe (2 kg/ha) ou triazole. Traiter tôt le matin.",prevention:"Variétés résistantes. Éviter irrigation par aspersion. Rotation des cultures."},
+  {id:"MAL002",type:"maladie",titre:"Mildiou de la tomate",cultures:["Tomate"],risque:"Élevé",mots_cles:["mildiou","tomate","brun","phytophthora","feuille","pourriture","tache"],symptomes:["Taches brunes irrégulières sur feuilles et tiges","Duvet blanc grisâtre sous les feuilles par temps humide","Fruits noircissent et pourrissent rapidement","Progression rapide par temps de pluie"],cause:"Phytophthora infestans. Actif par humidité >80% et 15–25°C.",traitement:"Bouillie bordelaise 1% ou métalaxyl. Retirer les parties infectées.",prevention:"Paillage, éviter mouillage des feuilles, espacement 50 cm min."},
+  {id:"MAL003",type:"maladie",titre:"Charbon du sorgho",cultures:["Sorgho"],risque:"Faible",mots_cles:["charbon","sorgho","noir","épi","sporisorium","poudre","grains"],symptomes:["Épis remplacés par masse de spores noires","Odeur de poisson caractéristique","Grains absents remplacés par poudre sombre","Plant de taille normale mais épi stérile"],cause:"Sporisorium sorghi transmis par semences infectées.",traitement:"Aucun curatif. Détruire les épis avant sporulation.",prevention:"Traitement semences au thirame (3g/kg). Variétés certifiées."},
+  {id:"MAL004",type:"maladie",titre:"Chenilles légionnaires (Spodoptera)",cultures:["Maïs","Mil","Sorgho","Riz"],risque:"Élevé",mots_cles:["chenille","légionnaire","spodoptera","ver","feuille","trou","ronger","larve","traitement","insecte"],symptomes:["Feuilles déchiquetées avec trous irréguliers","Déjections noires dans le cornet","Dégâts sur toute la plante en cas d'infestation forte","Larves vertes/brunes la nuit"],cause:"Spodoptera frugiperda, invasif en Afrique depuis 2016.",traitement:"Emamectine benzoate (0,4 L/ha) ou lambda-cyhalothrine. Appliquer dans le cornet le matin.",prevention:"Surveiller dès stade V3–V6. Pièges à phéromones."},
+  {id:"MAL005",type:"maladie",titre:"Pourriture des racines (Fusarium)",cultures:["Maïs","Tomate","Oignon"],risque:"Modéré",mots_cles:["racine","pourrit","fusarium","flétrissement","sol","base","tige","brun"],symptomes:["Flétrissement soudain malgré sol humide","Coloration brune à la base de la tige","Racines brunes et pourries","Plant meurt rapidement"],cause:"Fusarium oxysporum — sol mal drainé ou surirrigué.",traitement:"Retirer les plants. Chaulage du sol. Trichoderma en préventif.",prevention:"Drainage, rotation, ne pas sur-irriguer, pH 6–7."},
+  {id:"CONS001",type:"conseil",titre:"Engrais azoté (urée) sur le maïs",cultures:["Maïs"],mots_cles:["engrais","urée","azote","maïs","fertilisation","dose","appliquer","npk","quel"],description:"L'azote est le nutriment le plus important pour le maïs. Une carence se voit par le jaunissement en V des feuilles basses.",action:"Urée (46% N) en deux fractions : 1/3 au semis + 2/3 au stade 6 feuilles. Dose totale : 100–150 kg/ha.",periode:"Au semis puis 30–35 jours après levée"},
+  {id:"CONS002",type:"conseil",titre:"Feuilles jaunes sur maïs — diagnostic",cultures:["Maïs"],mots_cles:["jaune","jaunisse","feuille","maïs","carence","azote","chlorose","pourquoi"],description:"Jaunissement : carence azote (jaune en V depuis la pointe), carence fer (feuilles rayées), stress hydrique ou maladie.",action:"1. Vérifier humidité sol. 2. Sol humide → urée 50 kg/ha. 3. Sol sec → irriguer d'abord. 4. Persistance → technicien.",periode:"Tout au long du cycle végétatif"},
+  {id:"CONS003",type:"conseil",titre:"Irrigation optimale en saison sèche",cultures:["Tomate","Oignon","Maïs","Riz"],mots_cles:["irrigation","arrosage","eau","sec","sécheresse","humidité","quand","irriguer"],description:"En saison sèche au Burkina, l'irrigation est critique. Un mauvais timing peut brûler les feuilles ou favoriser les champignons.",action:"Irriguer 5h–8h ou 18h–20h. Tomate : 3–4 L/plant/jour. Oignon : 25–30 mm/semaine. Tester sol à 5 cm.",periode:"Novembre à Mai"},
+  {id:"CONS004",type:"conseil",titre:"Densité de semis et écartement",cultures:["Maïs","Mil","Sorgho","Riz"],mots_cles:["semis","écartement","densité","distance","plantation","espace","rang"],description:"Un bon écartement maximise la photosynthèse et limite la compétition entre plants.",action:"Maïs : 75×25 cm. Mil : 80×80 cm. Sorgho : 80×40 cm. Riz irrigué : 20×20 cm. Semer 2–3 graines/poquet.",periode:"Début saison des pluies ou contre-saison"},
+  {id:"CONS005",type:"conseil",titre:"Estimation du rendement en mil",cultures:["Mil"],mots_cles:["rendement","mil","production","récolte","tonne","estimation"],description:"Rendement mil au Burkina : 0,6–2,5 t/ha. Moyenne nationale : ~1,0 t/ha sans intrants.",action:"Avec NPK (50 kg/ha) + bonne pluie : 1,5–2,0 t/ha. Compter panicules/ha × poids moyen (80–150 g).",periode:"Évaluation en fin de cycle (octobre)"},
+  {id:"CONS006",type:"conseil",titre:"Traitement fongique préventif",cultures:["Tomate","Oignon","Maïs"],mots_cles:["prévention","fongicide","champignon","traitement","préventif","pluie","bouillie","humidité"],description:"En début de saison des pluies, l'humidité monte et favorise les champignons.",action:"Bouillie bordelaise 1% tous les 10–14 jours dès les premières pluies. Alterner avec mancozèbe.",periode:"Juin à septembre"},
+  {id:"CONS007",type:"conseil",titre:"Préparation du sol avant semis",cultures:["Maïs","Mil","Sorgho","Riz","Tomate","Oignon","Coton"],mots_cles:["sol","labour","préparation","semis","zaï","billons","compost","travail"],description:"La préparation du sol est déterminante. Les techniques zaï et cordons pierreux sont adaptées au Burkina.",action:"Labour à 20–25 cm avant les pluies. Zaï : poquets 20 cm diamètre × 10 cm profondeur × 80 cm espacement + compost.",periode:"Avril–Mai"}
+];
+
+/* ================================================================
+   DONNÉES CULTURES & COEFFICIENTS ESTIMATION
+   ================================================================ */
+const CULTURES = {
+  mais:   {label:"Maïs",   rBase:3.2, besoins:{mm:600,opt:750},
+    varietes:[{v:"local",f:0.75,l:"Locale (non améliorée)"},{v:"amelio",f:1.0,l:"Variété améliorée INERA"},{v:"hybride",f:1.25,l:"Hybride certifié"}]},
+  mil:    {label:"Mil",    rBase:1.8, besoins:{mm:400,opt:550},
+    varietes:[{v:"local",f:0.80,l:"Local"},{v:"amelio",f:1.0,l:"IKMP5 / SOSAT"},{v:"hybride",f:1.1,l:"HKP (ICRISAT)"}]},
+  sorgho: {label:"Sorgho", rBase:2.1, besoins:{mm:450,opt:600},
+    varietes:[{v:"local",f:0.75,l:"Local"},{v:"amelio",f:1.0,l:"Sariasso 14"},{v:"hybride",f:1.15,l:"ICSV 111"}]},
+  riz:    {label:"Riz",    rBase:4.5, besoins:{mm:900,opt:1100},
+    varietes:[{v:"local",f:0.70,l:"Riz local"},{v:"amelio",f:1.0,l:"FKR 19 / FKR 60"},{v:"hybride",f:1.2,l:"FKR 56N"}]},
+  tomate: {label:"Tomate", rBase:14,  besoins:{mm:600,opt:800},
+    varietes:[{v:"local",f:0.60,l:"Locale"},{v:"amelio",f:1.0,l:"Mongal / Roma VF"},{v:"hybride",f:1.3,l:"Cobra F1 / Tropimech"}]},
+  oignon: {label:"Oignon", rBase:11,  besoins:{mm:500,opt:650},
+    varietes:[{v:"local",f:0.70,l:"Violet de Galmi"},{v:"amelio",f:1.0,l:"Fétri / Bafoulabé"},{v:"hybride",f:1.1,l:"Texas Early Grano"}]},
+  coton:  {label:"Coton",  rBase:1.5, besoins:{mm:700,opt:900},
+    varietes:[{v:"local",f:0.80,l:"Local"},{v:"amelio",f:1.0,l:"FK 37 / FK 291"},{v:"hybride",f:1.1,l:"STAM 59A"}]},
+};
+
+const F_ENGRAIS = {
+  aucun:          {f:0.50,label:"Sans engrais"},
+  fumure:         {f:0.72,label:"Fumure organique"},
+  npk:            {f:0.88,label:"NPK seul"},
+  npk_uree:       {f:1.00,label:"NPK + Urée standard"},
+  npk_uree_fort:  {f:1.12,label:"NPK + Urée haute dose"},
+};
+const F_EAU   = {pluie:{f:1.00,label:"Pluviale"},suppl:{f:1.15,label:"+ appoint"},irrig:{f:1.30,label:"Irrigation complète"}};
+const F_SANTE = {bon:{f:1.00,label:"Bon"},moyen:{f:0.78,label:"Maladie légère"},mauvais:{f:0.52,label:"Maladie sévère"}};
+const F_SOL   = {limon:{f:1.00,label:"Limoneux"},argile:{f:0.88,label:"Argileux"},sable:{f:0.76,label:"Sableux"},laterite:{f:0.70,label:"Latéritique"}};
+
+/* ================================================================
+   ÉTAT GLOBAL
+   ================================================================ */
+let isOnline = true;
+let meteoEstData = null;   // données météo pour estimation
+window._meteoLoaded = false;
+let chatHistory = [];      // historique de conversation Claude API
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'meteo' && !window._meteoLoaded) loadMeteo();
+  if (name === 'intrants') renderIntrants();
+}
+
+/* ================================================================
+   CHATBOT — MODE ONLINE / OFFLINE
+   ================================================================ */
+const STOPWORDS = new Set(["le","la","les","de","du","des","un","une","et","en","est","que","qui","pour","sur","avec","dans","mon","ma","mes","je","il","elle","on","nous","vous","ils","au","aux","par","se","sa","son","ses","ce","ci","comment","quoi","quand","pourquoi","quel","quelle","nan","pas","très"]);
+
+function tokeniser(txt) {
+  return (txt.toLowerCase().match(/[a-zA-ZÀ-ÿ]{3,}/g)||[]).filter(t => !STOPWORDS.has(t));
+}
+
+function scorer(tokens, e) {
+  let s = 0;
+  const mk  = (e.mots_cles||[]).map(m => m.toLowerCase());
+  const tit = tokeniser(e.titre||"");
+  const sym = tokeniser((e.symptomes||[]).join(" "));
+  const cul = tokeniser((e.cultures||[]).join(" "));
+  const dsc = tokeniser(e.description||"");
+  for (const t of tokens) {
+    if (mk.includes(t))  s += 3.0;
+    if (tit.includes(t)) s += 2.0;
+    if (sym.includes(t)) s += 1.5;
+    if (cul.includes(t)) s += 1.0;
+    if (dsc.includes(t)) s += 0.5;
+  }
+  return s;
+}
+
+function rechercherLocale(question) {
+  const tokens = tokeniser(question);
+  if (!tokens.length) return null;
+  const ranked = BASE.map(e => ({e, s: scorer(tokens, e)}))
+    .filter(x => x.s > 0).sort((a,b) => b.s - a.s);
+  return ranked.length && ranked[0].s >= 2 ? ranked[0].e : null;
+}
+
+function esc(t) {
+  return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function buildMsgHTML(texte, source) {
+  const lines = texte.split("\n");
+  let html = "";
+  lines.forEach((line, i) => {
+    if (i === 0) html += `<strong>${esc(line)}</strong>`;
+    else html += `<div style="margin-top:2px">${esc(line)}</div>`;
+  });
+  if (source === "online")  html += `<div class="source-tag source-online"><i class="ti ti-brain" style="font-size:10px"></i> IA Gemini</div>`;
+  if (source === "offline") html += `<div class="source-tag source-offline"><i class="ti ti-database" style="font-size:10px"></i> Base locale</div>`;
+  return html;
+}
+
+function formaterReponse(entree) {
+  if (!entree) {
+    return {html: buildMsgHTML("❓ Aucune correspondance dans la base locale.\n\nEssayez : maladie, feuille, engrais, arrosage, rendement, semis, chenille…\n\nOu passez en mode En ligne."), cls:"msg-bot"};
+  }
+  if (entree.type === "maladie") {
+    const symStr = (entree.symptomes||[]).map(s => `• ${s}`).join("\n");
+    const txt = `🔍 ${entree.titre}\nRisque : ${entree.risque} · Cultures : ${entree.cultures.join(", ")}\n\nSymptômes :\n${symStr}\n\nCause : ${entree.cause}\n\nTraitement : ${entree.traitement}\n\nPrévention : ${entree.prevention}`;
+    return {html: buildMsgHTML(txt, "offline"), cls:"msg-offline"};
+  }
+  const txt = `💡 ${entree.titre}\n\n${entree.description}\n\nAction :\n${entree.action}\n\nPériode : ${entree.periode}`;
+  return {html: buildMsgHTML(txt, "offline"), cls:"msg-offline"};
+}
+
+function switchMode(checked) {
+  isOnline = checked;
+  const badge = document.getElementById('modeBadge');
+  const info  = document.getElementById('modeInfo');
+  const dot   = document.getElementById('topDot');
+  const ts    = document.getElementById('topStatus');
+  const oc    = document.getElementById('offlineCard');
+  if (isOnline) {
+    badge.textContent = 'En ligne'; badge.className = 'mode-badge online';
+    info.textContent  = 'Réponses via IA Gemini · Nécessite connexion internet';
+    dot.style.background = '#4ADE80'; ts.textContent = 'En ligne';
+    oc.style.display = 'none';
+    chatHistory = [];
+  } else {
+    badge.textContent = 'Hors-ligne'; badge.className = 'mode-badge offline';
+    info.textContent  = 'Moteur local · Recherche dans base_connaissances.json';
+    dot.style.background = '#60A5FA'; ts.textContent = 'Hors-ligne';
+    oc.style.display = 'block';
+    chatHistory = [];
+  }
+  appendSystem(`Mode → ${isOnline ? 'IA en ligne' : 'Base locale hors-ligne'}`);
+}
+
+function clearChat() {
+  chatHistory = [];
+  const msgs = document.getElementById('chatMessages');
+  msgs.innerHTML = '<div class="msg msg-bot">Bonjour ! Je suis votre assistant agricole AgriSmart. Posez vos questions sur les cultures, maladies ou techniques.</div>';
+}
+
+function appendSystem(txt) {
+  const msgs = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className = 'msg msg-system'; d.textContent = txt;
+  msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendRaw(html, cls) {
+  const msgs = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className = `msg ${cls}`; d.innerHTML = html;
+  msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showThinking() {
+  const msgs = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className = 'msg msg-bot'; d.id = 'thinking';
+  d.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+  msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeThinking() {
+  const b = document.getElementById('thinking');
+  if (b) b.remove();
+}
+
+async function sendMsg() {
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  appendRaw(esc(text), 'msg-user');
+  input.value = '';
+  showThinking();
+
+  if (isOnline) {
+    try {
+      // Ajouter le message utilisateur à l'historique
+      chatHistory.push({ role: 'user', content: text });
+
+      const resp = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          has_image: false,
+          max_tokens: 1000,
+          system: `Tu es AgriSmart, un assistant agricole expert spécialisé pour le Burkina Faso et l'Afrique de l'Ouest.
+Tu aides les agriculteurs avec : maladies des plantes, engrais et intrants, irrigation, semis, rendements, météo agricole.
+Réponds toujours en français. Sois concis, pratique et adapté aux réalités burkinabè (cultures locales : maïs, mil, sorgho, riz, coton, tomate, oignon, niébé, arachide).
+Mentionne les produits disponibles localement et les techniques adaptées au Sahel.
+Ne dépasse pas 200 mots par réponse sauf si on te demande plus de détails.
+Si la question sort du domaine agricole, redirige poliment vers les sujets agricoles.`,
+          messages: chatHistory
+        })
+      });
+
+      removeThinking();
+
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      const reponse = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+
+      // Ajouter la réponse à l'historique
+      chatHistory.push({ role: 'assistant', content: reponse });
+
+      // Garder max 20 échanges (40 messages) pour éviter de dépasser le contexte
+      if (chatHistory.length > 40) chatHistory = chatHistory.slice(-40);
+
+      appendRaw(buildMsgHTML(reponse, 'online'), 'msg-bot');
+
+    } catch (err) {
+      removeThinking();
+      // Retirer le dernier message user de l'historique si erreur
+      if (chatHistory.length && chatHistory[chatHistory.length - 1].role === 'user') {
+        chatHistory.pop();
+      }
+      appendRaw(buildMsgHTML(`⚠️ Impossible de contacter l'IA Gemini.\n\nVérifiez votre connexion internet ou passez en mode Hors-ligne pour utiliser la base locale.`, 'online'), 'msg-bot');
+    }
+  } else {
+    await new Promise(r => setTimeout(r, 350));
+    removeThinking();
+    const entree = rechercherLocale(text);
+    const {html, cls} = formaterReponse(entree);
+    appendRaw(html, cls);
+  }
+}
+
+function insertChip(el) {
+  document.getElementById('chatInput').value = el.textContent;
+  document.getElementById('chatInput').focus();
+}
+
+/* ================================================================
+   ESTIMATION — MOTEUR DE PRÉDICTION
+   Formule : R = R_base × f_variété × f_pluie × f_engrais × f_eau × f_santé × f_sol
+   Données météo réelles : Open-Meteo (précipitations 90 jours)
+   ================================================================ */
+function onCultureChange() {
+  const culture = document.getElementById('culture').value;
+  const sel = document.getElementById('variete');
+  sel.innerHTML = '';
+  CULTURES[culture].varietes.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v.v; o.textContent = v.l;
+    if (v.v === 'amelio') o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+async function loadMeteoEstimation() {
+  const status  = document.getElementById('est-meteo-status');
+  const content = document.getElementById('est-meteo-content');
+  try {
+    const pos = await new Promise((res,rej) =>
+      navigator.geolocation.getCurrentPosition(res,rej,{timeout:6000})
+    ).catch(() => null);
+    const lat = pos ? pos.coords.latitude  : 12.3647;
+    const lon = pos ? pos.coords.longitude : -1.5353;
+    const end   = new Date();
+    const start = new Date(); start.setDate(start.getDate() - 90);
+    const fmt = d => d.toISOString().split('T')[0];
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration&timezone=Africa%2FAbidjan&start_date=${fmt(start)}&end_date=${fmt(end)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Open-Meteo indisponible');
+    const data = await res.json();
+    meteoEstData = {
+      lat, lon,
+      pluie90:      data.daily.precipitation_sum.reduce((a,b) => a+(b||0), 0),
+      tempMoy:      data.daily.temperature_2m_max.reduce((a,b) => a+(b||0), 0) / data.daily.temperature_2m_max.length,
+      et0Total:     data.daily.et0_fao_evapotranspiration.reduce((a,b) => a+(b||0), 0),
+      joursPluvieux:data.daily.precipitation_sum.filter(v => v > 1).length,
+      maxJour:      Math.max(...data.daily.precipitation_sum),
+    };
+    const label = pos ? 'GPS' : 'Ouagadougou';
+    status.textContent = `— ${label} · ${fmt(start)} → ${fmt(end)}`;
+    status.style.color = '#1B4332';
+    content.innerHTML = `
+      <div class="weather-strip">
+        <i class="ti ti-cloud-rain"></i>
+        <div class="weather-info">
+          <strong>${meteoEstData.pluie90.toFixed(0)} mm cumulés sur 90 jours</strong>
+          <span>${meteoEstData.joursPluvieux} jours de pluie · max ${meteoEstData.maxJour.toFixed(1)} mm/j · ETP ${meteoEstData.et0Total.toFixed(0)} mm</span>
+        </div>
+        <span class="badge ${meteoEstData.pluie90>500?'badge-green':meteoEstData.pluie90>250?'badge-amber':'badge-red'}">
+          ${meteoEstData.pluie90>500?'Bonne saison':meteoEstData.pluie90>250?'Saison correcte':'Déficit'}
+        </span>
+      </div>
+      <div class="source-note"><i class="ti ti-info-circle" style="font-size:12px"></i>Open-Meteo · Données réelles · Sans clé API</div>
+    `;
+  } catch(e) {
+    status.textContent = '— météo indisponible';
+    meteoEstData = null;
+    content.innerHTML = `<div class="badge badge-amber" style="font-size:11px"><i class="ti ti-wifi-off" style="font-size:11px"></i> Calcul avec normales climatiques (Ouagadougou)</div>`;
+  }
+}
+
+/* ---- Facteur pluie (modèle de réponse hydrique agronomique) ---- */
+function fPluie(pluie90j, besoins) {
+  const annuelEst = pluie90j * (12/3);
+  const opt = besoins.opt, min = besoins.mm;
+  if (annuelEst >= opt)        return 1.00;
+  if (annuelEst >= min)        return 0.60 + 0.40 * ((annuelEst-min)/(opt-min));
+  if (annuelEst >= min * 0.6)  return 0.35 + 0.25 * ((annuelEst-min*0.6)/(min*0.4));
+  return 0.20;
+}
+
+/* ---- Facteur stress hydrique (ratio pluie/ETP) ---- */
+function fStress(et0, pluie) {
+  if (!et0 || !pluie) return 1.0;
+  const ratio = pluie / Math.max(et0, 1);
+  if (ratio >= 0.8) return 1.00;
+  if (ratio >= 0.5) return 0.85 + 0.15 * ((ratio-0.5)/0.3);
+  if (ratio >= 0.3) return 0.65 + 0.20 * ((ratio-0.3)/0.2);
+  return 0.50;
+}
+
+function niveauConfiance(pluie90, sante, sol) {
+  let score = 70;
+  if (pluie90 > 400) score += 15; else if (pluie90 > 200) score += 8;
+  if (sante === 'bon') score += 10; if (sante === 'mauvais') score -= 10;
+  if (sol === 'limon') score += 5;  if (sol === 'laterite')  score -= 5;
+  return Math.min(95, Math.max(40, score));
+}
+
+function barColor(ratio) {
+  if (ratio >= 0.9) return '#52B788';
+  if (ratio >= 0.7) return '#F59E0B';
+  return '#EF4444';
+}
+
+function calculerEstimation() {
+  const culture = document.getElementById('culture').value;
+  const variete = document.getElementById('variete').value;
+  const surface = parseFloat(document.getElementById('surface').value) || 1;
+  const engrais = document.getElementById('engrais').value;
+  const eau     = document.getElementById('eau').value;
+  const sante   = document.getElementById('sante').value;
+  const sol     = document.getElementById('sol').value;
+
+  const cult  = CULTURES[culture];
+  const varOb = cult.varietes.find(v => v.v === variete) || cult.varietes[1];
+  const fVar  = varOb.f;
+  const fEng  = F_ENGRAIS[engrais].f;
+  const fEau  = F_EAU[eau].f;
+  const fSan  = F_SANTE[sante].f;
+  const fSol  = F_SOL[sol].f;
+
+  const pluie90 = meteoEstData ? meteoEstData.pluie90  : 420;
+  const et0     = meteoEstData ? meteoEstData.et0Total : 480;
+  const fPl     = fPluie(pluie90, cult.besoins);
+  const fStr    = fStress(et0, pluie90);
+  const fEauFin = eau === 'irrig' ? fEau : Math.min(fEau, 1.0 + (fEau-1) * fStr);
+
+  const rend  = cult.rBase * fVar * fPl * fEng * fEauFin * fSan * fSol;
+  const total = rend * surface;
+  const conf  = niveauConfiance(pluie90, sante, sol);
+
+  /* --- Résultats --- */
+  document.getElementById('est-rend').textContent      = rend.toFixed(2) + ' t/ha';
+  document.getElementById('est-total').textContent     = total.toFixed(1) + ' t';
+  document.getElementById('est-fourchette').textContent= (rend*0.85).toFixed(1) + '–' + (rend*1.15).toFixed(1) + ' t/ha';
+  document.getElementById('est-conf').innerHTML =
+    `<span class="badge ${conf>=75?'badge-green':conf>=55?'badge-amber':'badge-red'}" style="font-size:14px;font-weight:600">${conf}%</span>`;
+
+  /* --- Facteurs --- */
+  const factors = [
+    {name:`Variété (${varOb.l})`,                          f:fVar,   ref:1.25},
+    {name:`Pluviométrie (${pluie90.toFixed(0)} mm/90j)`,  f:fPl,    ref:1.0},
+    {name:`Gestion eau (${F_EAU[eau].label})`,             f:fEauFin,ref:1.3},
+    {name:`Fertilisation (${F_ENGRAIS[engrais].label})`,  f:fEng,   ref:1.12},
+    {name:`État sanitaire (${F_SANTE[sante].label})`,     f:fSan,   ref:1.0},
+    {name:`Sol (${F_SOL[sol].label})`,                    f:fSol,   ref:1.0},
+  ];
+  document.getElementById('factors-list').innerHTML = factors.map(({name,f,ref}) => `
+    <div class="factor-row">
+      <span class="factor-name">${name}</span>
+      <div class="factor-bar-wrap"><div class="factor-bar" style="width:${Math.round(Math.min(f/ref,1)*100)}%;background:${barColor(f/ref)}"></div></div>
+      <span class="factor-val">${(f*100).toFixed(0)}%</span>
+    </div>
+  `).join('');
+
+  /* --- Pluie --- */
+  const besoins = cult.besoins;
+  const pct = Math.min(100, Math.round((pluie90/(besoins.opt*3/12))*100));
+  document.getElementById('rain-summary-est').innerHTML = meteoEstData ? `
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Besoin optimal : ${besoins.opt} mm/saison</span><span>${pct}% couvert</span></div>
+      <div class="progress-bar-bg"><div class="progress-fill" style="width:${pct}%;background:${pct>=80?'#52B788':pct>=50?'#F59E0B':'#EF4444'}"></div></div>
+    </div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:4px">
+      ${pluie90.toFixed(0)} mm · ${meteoEstData.joursPluvieux} j pluvieux · T°moy ${meteoEstData.tempMoy.toFixed(1)}°C · ETP ${et0.toFixed(0)} mm
+    </div>
+    <div class="source-note"><i class="ti ti-database" style="font-size:12px"></i>Données réelles Open-Meteo · Lat ${meteoEstData.lat.toFixed(2)} Lon ${meteoEstData.lon.toFixed(2)}</div>
+  ` : `<div style="font-size:12px;color:var(--txt2)">Normales climatiques Ouagadougou utilisées (hors-ligne)</div>`;
+
+  /* --- Recommandations --- */
+  const tips = [];
+  if (engrais === 'aucun')     tips.push({bg:'var(--red-xl)',tc:'#7F1D1D',ic:'ti-alert-triangle',t:'Engrais manquant',d:'Sans fertilisation le potentiel est divisé par deux. NPK + Urée peut augmenter le rendement de +50%.'});
+  if (fPl < 0.7)               tips.push({bg:'var(--red-xl)',tc:'#7F1D1D',ic:'ti-droplet-off',t:'Déficit pluviométrique',d:'Les précipitations sont insuffisantes. Envisagez une irrigation d\'appoint ou une culture plus tolérante (mil, sorgho).'});
+  if (sante !== 'bon')         tips.push({bg:'var(--amber-xl)',tc:'#78350F',ic:'ti-virus',t:'État sanitaire dégradé',d:'Un traitement préventif (bouillie bordelaise 1%) peut récupérer 15–25% de rendement.'});
+  if (sol === 'laterite')      tips.push({bg:'var(--amber-xl)',tc:'#78350F',ic:'ti-shovel',t:'Sol latéritique contraignant',d:'Apportez du compost ou du fumier (5 t/ha) et pratiquez le zaï pour améliorer l\'infiltration.'});
+  if (variete === 'local')     tips.push({bg:'var(--blue-xl)',tc:'#1E3A8A',ic:'ti-seedling',t:'Variété locale peu performante',d:'Passer à une variété améliorée INERA peut multiplier le rendement par 1,3 sans autre changement.'});
+  if (rend/cult.rBase >= 0.85) tips.push({bg:'var(--green-xl)',tc:'#1B4332',ic:'ti-check',t:'Parcelle bien conduite',d:'Vos paramètres sont favorables. Le rendement prédit est proche du potentiel variétal.'});
+  document.getElementById('tips-list').innerHTML = tips.map(t => `
+    <div class="tip-card" style="background:${t.bg}">
+      <i class="ti ${t.ic}" style="color:${t.tc};font-size:16px;flex-shrink:0;margin-top:1px"></i>
+      <div><div class="tip-title" style="color:${t.tc}">${t.t}</div><div class="tip-text" style="color:${t.tc}">${t.d}</div></div>
+    </div>
+  `).join('');
+
+  document.getElementById('est-factors-card').style.display = 'block';
+  document.getElementById('est-rain-card').style.display    = 'block';
+  document.getElementById('est-tips-card').style.display    = 'block';
+}
+
+/* ================================================================
+   MÉTÉO — ONGLET MÉTÉO
+   ================================================================ */
+function owIcon(id) {
+  if(id>=200&&id<300)return'ti-cloud-storm';
+  if(id>=300&&id<400)return'ti-cloud-drizzle';
+  if(id>=500&&id<600)return'ti-cloud-rain';
+  if(id>=600&&id<700)return'ti-snowflake';
+  if(id>=700&&id<800)return'ti-cloud-fog';
+  if(id===800)return'ti-sun';
+  if(id===801)return'ti-cloud-sun';
+  return'ti-cloud';
+}
+
+function getConseil(temp, humidity, wid) {
+  if(wid>=200&&wid<300)return{bg:'var(--red-xl)',border:'var(--red-l)',tc:'#7F1D1D',sc:'#991B1B',icon:'ti-alert-triangle',title:'Alerte orage',text:'Orages en cours — évitez les champs. Risque de verse pour maïs et sorgho.'};
+  if(wid>=500&&wid<600&&humidity>75)return{bg:'var(--blue-xl)',border:'#3B82F6',tc:'#1E3A8A',sc:'#1E40AF',icon:'ti-cloud-rain',title:'Pluie — opportunité de semis',text:'Conditions favorables pour les semis. Humidité élevée — risque fongique sur tomate et oignon.'};
+  if(humidity>70&&temp>28)return{bg:'var(--amber-xl)',border:'var(--amber-l)',tc:'#78350F',sc:'#92400E',icon:'ti-alert-circle',title:'Risque fongique élevé',text:'Chaleur et humidité combinées favorisent les champignons. Surveillez le maïs et la tomate.'};
+  if(temp>35)return{bg:'var(--red-xl)',border:'var(--red-l)',tc:'#7F1D1D',sc:'#991B1B',icon:'ti-sun',title:'Chaleur extrême',text:'Irriguez tôt le matin (5h–8h) ou en soirée. Évitez les traitements en plein soleil.'};
+  if(temp>28&&humidity<40)return{bg:'var(--amber-xl)',border:'var(--amber-l)',tc:'#78350F',sc:'#92400E',icon:'ti-droplet-off',title:'Air sec — besoins en eau élevés',text:'Augmentez la fréquence d\'arrosage. Paillage recommandé.'};
+  return{bg:'var(--green-xl)',border:'var(--green-l)',tc:'#1B4332',sc:'#2D6A4F',icon:'ti-plant',title:'Conditions favorables',text:'Bon moment pour les traitements préventifs et la fertilisation.'};
+}
+
+function shortDay(d){return['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][new Date(d).getDay()];}
+
+function buildRainChart(daily) {
+  const chart=document.getElementById('rain-chart'); chart.innerHTML='';
+  const vals=daily.precipitation_sum, dates=daily.time;
+  const maxVal=Math.max(...vals,1); let totalMm=0, rainDays=0;
+  vals.forEach((mm,i) => {
+    totalMm+=mm; if(mm>0.5)rainDays++;
+    const pct=Math.max((mm/maxVal)*72, mm>0?4:2);
+    const cls=mm>=10?'high':mm>=5?'medium':mm>0?'low':'none';
+    const day=shortDay(dates[i]); const label=i%3===0?day:'';
+    chart.innerHTML+=`<div class="rain-bar-wrap"><div class="rain-mm">${mm>0?mm.toFixed(0):''}</div><div class="rain-bar ${cls}" style="height:${pct}px"></div><div class="rain-label">${label}</div></div>`;
+  });
+  document.getElementById('rain-total-label').textContent=
+    `Total sur 16 jours : ${totalMm.toFixed(0)} mm · ${rainDays} jour${rainDays>1?'s':''} de pluie`;
+}
+
+function buildSaisonIndicator(daily) {
+  const now=new Date(), mois=now.getMonth();
+  const totalPrevu=daily.precipitation_sum.reduce((a,b)=>a+b,0);
+  const indicator=document.getElementById('saison-indicator');
+  const icon=document.getElementById('saison-icon');
+  const title=document.getElementById('saison-title');
+  const desc=document.getElementById('saison-desc');
+  const progWrap=document.getElementById('saison-progress-wrap');
+  const fill=document.getElementById('saison-prog-fill');
+  const inHiv=mois>=DEBUT_SAISON&&mois<=FIN_SAISON;
+  const avantHiv=mois<DEBUT_SAISON;
+  if(inHiv){
+    const ds=new Date(now.getFullYear(),DEBUT_SAISON,1);
+    const fs=new Date(now.getFullYear(),FIN_SAISON+1,0);
+    const pct=Math.min(Math.round(((now-ds)/(fs-ds))*100),100);
+    indicator.style.background='#1E40AF'; indicator.style.color='#fff';
+    icon.className='ti ti-droplets'; icon.style.color='#93C5FD';
+    title.textContent='Hivernage en cours';
+    desc.textContent=`Saison des pluies active. ${totalPrevu.toFixed(0)} mm prévus sur 16 jours. Fin estimée fin septembre.`;
+    progWrap.style.display='block';
+    document.getElementById('saison-prog-start').textContent='Juin';
+    document.getElementById('saison-prog-end').textContent='Octobre';
+    document.getElementById('saison-prog-pct').textContent=pct+'%';
+    fill.style.width=pct+'%';
+  } else if(avantHiv){
+    const ds=new Date(now.getFullYear(),DEBUT_SAISON,1);
+    const jr=Math.round((ds-now)/86400000);
+    const sp=totalPrevu>20;
+    indicator.style.background=sp?'#1D4ED8':'#B45309'; indicator.style.color='#fff';
+    icon.className=sp?'ti ti-cloud-rain':'ti ti-sun';
+    icon.style.color=sp?'#93C5FD':'#FCD34D';
+    title.textContent=sp?'Premières pluies détectées !':`Hivernage dans ~${jr} jours`;
+    desc.textContent=sp?`${totalPrevu.toFixed(0)} mm prévus — pluies imminentes. Préparez vos semences.`:`Saison sèche. Normalement ${NORMALES_MM[mois]} mm ce mois. Préparez les semences pour juin.`;
+    progWrap.style.display='none';
+  } else {
+    const dp=new Date(now.getFullYear()+1,DEBUT_SAISON,1);
+    const jr=Math.round((dp-now)/86400000);
+    indicator.style.background='#7C3AED'; indicator.style.color='#fff';
+    icon.className='ti ti-leaf'; icon.style.color='#C4B5FD';
+    title.textContent='Hivernage terminé';
+    desc.textContent=`Saison sèche fraîche. Prochain hivernage dans ~${jr} jours. Période favorable pour les cultures de contre-saison.`;
+    progWrap.style.display='none';
+  }
+}
+
+async function loadMeteo() {
+  document.getElementById('meteo-loading').style.display='flex';
+  document.getElementById('meteo-content').style.display='none';
+  document.getElementById('meteo-error').style.display='none';
+  window._meteoLoaded=true;
+  try {
+    const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000})).catch(()=>null);
+    const lat=pos?pos.coords.latitude:12.3647;
+    const lon=pos?pos.coords.longitude:-1.5353;
+    const owRes=await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OW_KEY}&units=metric&lang=fr`);
+    if(!owRes.ok) throw new Error('Clé OpenWeather invalide ou limite atteinte');
+    const ow=await owRes.json();
+    const omRes=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum&timezone=Africa%2FAbidjan&forecast_days=16`);
+    if(!omRes.ok) throw new Error('Erreur Open-Meteo');
+    const om=await omRes.json();
+    const temp=Math.round(ow.main.temp),feels=Math.round(ow.main.feels_like);
+    const humidity=ow.main.humidity,wind=Math.round(ow.wind.speed*3.6);
+    const wid=ow.weather[0].id,desc=ow.weather[0].description,city=ow.name;
+    const rain1h=ow.rain?(ow.rain['1h']||0):0;
+    document.getElementById('w-temp').textContent=temp;
+    document.getElementById('w-desc').textContent=desc;
+    document.getElementById('w-city').textContent=city;
+    document.getElementById('w-humidity').textContent=humidity+'%';
+    document.getElementById('w-wind').textContent=wind+' km/h';
+    document.getElementById('w-feels').textContent=feels+'°C';
+    document.getElementById('w-icon').className='ti '+owIcon(wid)+' weather-icon-lg';
+    document.getElementById('topbarLoc').textContent=city+' · Burkina Faso';
+    document.getElementById('w-rain-txt').textContent=rain1h>0?`Pluie : ${rain1h.toFixed(1)} mm/h`:(wid>=500&&wid<600)?'Pluie détectée':'Pas de pluie en cours';
+    const c=getConseil(temp,humidity,wid);
+    const cc=document.getElementById('conseil-card');
+    cc.style.background=c.bg; cc.style.border='0.5px solid '+c.border;
+    document.getElementById('conseil-icon').className='ti '+c.icon;
+    document.getElementById('conseil-icon').style.color=c.tc;
+    document.getElementById('conseil-title').style.color=c.tc;
+    document.getElementById('conseil-title').textContent=c.title;
+    document.getElementById('conseil-text').style.color=c.sc;
+    document.getElementById('conseil-text').textContent=c.text;
+    buildRainChart(om.daily);
+    buildSaisonIndicator(om.daily);
+    document.getElementById('meteo-loading').style.display='none';
+    document.getElementById('meteo-content').style.display='flex';
+  } catch(e) {
+    document.getElementById('meteo-loading').style.display='none';
+    document.getElementById('meteo-error-msg').textContent=e.message||'Erreur réseau.';
+    document.getElementById('meteo-error').style.display='block';
+  }
+}
+
+/* ================================================================
+   DIAGNOSTIC — BASE DE DONNÉES SYMPTÔMES
+   Source : burkina_phytosan_logic_engine (v2)
+   70 pathologies × 7 cultures — format cv_thresholds natif
+   ================================================================ */
+
+/* ---- Helpers de parsing des seuils cv_thresholds ---- */
+function _parseThresh(val, observed) {
+  if (val === undefined || val === null || observed === undefined) return null;
+  if (typeof val === 'boolean') return observed === val ? 1 : 0;
+  if (typeof val === 'string') {
+    if (val.startsWith('>'))  return parseFloat(observed) > parseFloat(val.slice(1))  ? 1 : 0;
+    if (val.startsWith('>=')) return parseFloat(observed) >= parseFloat(val.slice(2)) ? 1 : 0;
+    if (val.startsWith('<'))  return parseFloat(observed) < parseFloat(val.slice(1))  ? 1 : 0;
+    if (val.startsWith('<=')) return parseFloat(observed) <= parseFloat(val.slice(2)) ? 1 : 0;
+    /* enum string match */
+    return String(observed).toLowerCase().includes(val.toLowerCase()) ? 1 : 0;
+  }
+  return null;
+}
+
+/* Correspondance entre champs cv_thresholds et features extraites */
+const CV_FIELD_MAP = {
+  /* couleurs */
+  hole_ratio:           f => f.color_metrics?.black_necrosis_ratio,
+  color_hsv:            f => {
+    const cm = f.color_metrics || {};
+    if (cm.yellowing_ratio > 0.25)       return 'yellow';
+    if (cm.brown_necrosis_ratio > 0.10)  return 'tan_brown';
+    if (cm.white_powder_ratio > 0.05)    return 'white_downy';
+    if (cm.black_necrosis_ratio > 0.05)  return 'black';
+    if (cm.yellowing_ratio > 0.10)       return 'yellow_white';
+    return 'green';
+  },
+  color:                f => {
+    const cm = f.color_metrics || {};
+    if (cm.brown_necrosis_ratio > 0.12)  return 'tan_brown';
+    if (cm.yellowing_ratio > 0.20)       return 'yellow';
+    if (cm.white_powder_ratio > 0.05)    return 'white_downy';
+    if (cm.black_necrosis_ratio > 0.05)  return 'black_green';
+    return 'green';
+  },
+  /* morphologie */
+  linearity:            f => f.morphological_metrics?.avg_aspect_ratio >= 3.5 ? 1.0 : (f.morphological_metrics?.avg_aspect_ratio / 4.0) || 0,
+  aspect_ratio:         f => f.morphological_metrics?.avg_aspect_ratio,
+  shape:                f => f.morphological_metrics?.spot_shape,
+  circularity:          f => {
+    const ar = f.morphological_metrics?.avg_aspect_ratio || 2;
+    return +(1 / ar).toFixed(2);
+  },
+  texture:              f => f.morphological_metrics?.edge_definition === 'sharp' ? 'pustule_raised' : 'smooth',
+  spot_size:            f => f.morphological_metrics?.avg_spot_size_pixels > 50 ? 'large' : '<3mm',
+  spots:                f => f.morphological_metrics?.spot_count > 5 ? 'numerous_small_circles' : 'few',
+  /* spatial */
+  orientation:          f => f.spatial_distribution?.orientation,
+  location:             f => {
+    const sd = f.spatial_distribution || {};
+    const si = f.structural_integrity  || {};
+    if (sd.is_on_midrib)    return 'central_whorl';
+    if (sd.is_on_margins)   return 'leaf_tips';
+    if (si.holes_count > 0) return 'stem';
+    return 'old_leaves';
+  },
+  /* déformation */
+  leaf_deformation_index: f => f.structural_integrity?.leaf_deformation_index,
+  rolling:              f => f.structural_integrity?.leaf_deformation_index > 0.3 ? 'tight_cylinder' : 'flat',
+  droop_angle:          f => f.structural_integrity?.leaf_deformation_index * 100,
+  /* densité */
+  density:              f => f.morphological_metrics?.spot_count > 10 ? 'high_clusters' : 'low',
+  host_stunting:        f => f.color_metrics?.healthy_green_ratio < 0.3 ? 'high' : 'low',
+  uniform_yellowing:    f => f.color_metrics?.yellowing_ratio > 0.35 ? 'true' : 'false',
+};
+
+function observeField(field, features) {
+  const fn = CV_FIELD_MAP[field];
+  if (fn) return fn(features);
+  return undefined;
+}
+
+/* ---- Base de données maladies Burkina ---- */
+const SYMPTOMS_DB = [
+  /* ───── MAÏS ───── */
+  {id:'mais_chenille',crop:'maize',name:'Chenille Légionnaire',pathogen:'Spodoptera frugiperda',severity:'high',emoji:'🌽',
+   cv:{hole_ratio:'>0.2',location:'central_whorl'},
+   treatment:'Neem ou Spinetoram dans le cornet central. Traiter tôt le matin.',
+   prevention:'Surveiller dès le stade V3. Pièges à phéromones.',urgency:'Urgence — traiter immédiatement.'},
+  {id:'mais_msv',crop:'maize',name:'Striure du Maïs (MSV)',pathogen:'Maize Streak Virus',severity:'high',emoji:'🌽',
+   cv:{linearity:'>0.9',color_hsv:'yellow_white',orientation:'parallel_veins'},
+   treatment:'Aucun curatif. Arracher les plants. Traiter cicadelles avec imidaclopride.',
+   prevention:'Variétés résistantes MSV. Traitement semences insecticide.',urgency:'Urgence — virus. Arracher immédiatement.'},
+  {id:'mais_helmintho',crop:'maize',name:'Helminthosporiose',pathogen:'Exserohilum turcicum',severity:'medium',emoji:'🌽',
+   cv:{aspect_ratio:'>3.0',shape:'cigar',color:'tan_brown'},
+   treatment:'Mancozèbe 2 kg/ha si taches montent vers l\'épi.',
+   prevention:'Rotation 2 ans. Semences certifiées.',urgency:'Traiter sous 48h si >10% feuilles atteintes.'},
+  {id:'mais_rouille',crop:'maize',name:'Rouille Commune',pathogen:'Puccinia sorghi',severity:'medium',emoji:'🌽',
+   cv:{circularity:'>0.8',texture:'pustule_raised',color:'brick_red'},
+   treatment:'Fongicide systémique (propiconazole) en cas d\'attaque sévère.',
+   prevention:'Semis précoce. Éviter densité excessive.',urgency:'Intervention sous 5–7 jours si conditions humides.'},
+  {id:'mais_carence_n',crop:'maize',name:'Carence en Azote',pathogen:'Nutritionnelle',severity:'medium',emoji:'🌽',
+   cv:{color_hsv:'yellow',location:'old_leaves'},
+   treatment:'Urée 46% au pied des plants (50 kg/ha).',
+   prevention:'Fractionnement urée : 1/3 semis + 2/3 à J+35.',urgency:'Appliquer sous 7 jours.'},
+  {id:'mais_carence_p',crop:'maize',name:'Carence en Phosphore',pathogen:'Nutritionnelle',severity:'low',emoji:'🌽',
+   cv:{color_hsv:'purple_violet',location:'leaf_tips'},
+   treatment:'Apport NPK riche en P (DAP 18-46-0).',
+   prevention:'Analyse de sol avant campagne.',urgency:'Corriger avant floraison.'},
+  {id:'mais_charbon',crop:'maize',name:'Charbon du Maïs',pathogen:'Ustilago maydis',severity:'medium',emoji:'🌽',
+   cv:{color_hsv:'silver_grey',texture:'smooth_to_powdery'},
+   treatment:'Retirer et brûler les galles avant éclatement.',
+   prevention:'Rotation. Éviter blessures mécaniques.',urgency:'Retirer galles immédiatement.'},
+  {id:'mais_pucerons',crop:'maize',name:'Pucerons',pathogen:'Rhopalosiphum maidis',severity:'low',emoji:'🌽',
+   cv:{density:'high_clusters',color:'black_green'},
+   treatment:'Savon noir ou huile de Neem.',
+   prevention:'Favoriser auxiliaires. Éviter excès d\'azote.',urgency:'Traiter si miellat visible.'},
+  {id:'mais_bacteriose',crop:'maize',name:'Flétrissement Bactérien',pathogen:'Erwinia sp.',severity:'high',emoji:'🌽',
+   cv:{droop_angle:'>60',color_hsv:'green'},
+   treatment:'Améliorer le drainage.',
+   prevention:'Éviter stagnation d\'eau. Rotation.',urgency:'Améliorer drainage rapidement.'},
+  {id:'mais_sesamie',crop:'maize',name:'Sésamie (Foreur de tige)',pathogen:'Sesamia calamistis',severity:'medium',emoji:'🌽',
+   cv:{location:'stem',hole_ratio:'>0.05'},
+   treatment:'Brûler les résidus après récolte.',
+   prevention:'Destruction des chaumes. Rotation.',urgency:'Surveiller au stade tallage.'},
+
+  /* ───── MIL ───── */
+  {id:'mil_mildiou',crop:'pearl_millet',name:'Mildiou du Mil (Épi chevelu)',pathogen:'Sclerospora graminicola',severity:'high',emoji:'🌾',
+   cv:{color:'white_downy',color_hsv:'yellow_white'},
+   treatment:'Semences traitées au Métalaxyl pour prochaine campagne.',
+   prevention:'Variétés résistantes IKMP5. Rotation avec légumineuses.',urgency:'Arracher plants contaminés immédiatement.'},
+  {id:'mil_ergot',crop:'pearl_millet',name:'Ergot du Mil',pathogen:'Claviceps fusiformis',severity:'medium',emoji:'🌾',
+   cv:{color:'amber_to_black'},
+   treatment:'Ne pas consommer grains infectés. Labour profond après récolte.',
+   prevention:'Semences saines. Éviter semis trop dense.',urgency:'Récolter sain avant contamination.'},
+  {id:'mil_charbon',crop:'pearl_millet',name:'Charbon du Mil',pathogen:'Tolyposporium penicillariae',severity:'medium',emoji:'🌾',
+   cv:{color:'black_green',location:'old_leaves'},
+   treatment:'Semis précoce et synchronisé.',
+   prevention:'Semences certifiées. Rotation.',urgency:'Semis précoce la prochaine campagne.'},
+  {id:'mil_striga',crop:'pearl_millet',name:'Striga hermonthica',pathogen:'Striga hermonthica (parasite)',severity:'high',emoji:'🌾',
+   cv:{host_stunting:'high',color_hsv:'yellow'},
+   treatment:'Arracher avant floraison du Striga.',
+   prevention:'Rotation niébé SARVaRi-2. Fumure organique 5 t/ha.',urgency:'Arracher avant que Striga fleurisse.'},
+  {id:'mil_carence_n',crop:'pearl_millet',name:'Carence en Azote (Mil)',pathogen:'Nutritionnelle',severity:'medium',emoji:'🌾',
+   cv:{uniform_yellowing:'true',location:'old_leaves'},
+   treatment:'Apport azoté si le cycle le permet.',
+   prevention:'NPK au semis.',urgency:'Corriger rapidement.'},
+  {id:'mil_stress_h',crop:'pearl_millet',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🌾',
+   cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
+   treatment:'Arrosage si possible.',
+   prevention:'Paillage. Zaï pour rétention eau.',urgency:'Irriguer dans les 24h.'},
+
+  /* ───── SORGHO ───── */
+  {id:'sorgho_anthracnose',crop:'sorghum',name:'Anthracnose du Sorgho',pathogen:'Colletotrichum graminicola',severity:'high',emoji:'🌾',
+   cv:{color:'circular_tan',circularity:'>0.6'},
+   treatment:'Variétés résistantes. Brûler tiges après récolte.',
+   prevention:'Rotation 2 ans. Hygiène parcelle.',urgency:'Traiter sous 48h.'},
+  {id:'sorgho_pucerons',crop:'sorghum',name:'Pucerons (Melanaphis)',pathogen:'Melanaphis sacchari',severity:'low',emoji:'🌾',
+   cv:{density:'high_clusters',location:'old_leaves'},
+   treatment:'Neem si miellat recouvre les feuilles.',
+   prevention:'Favoriser auxiliaires.',urgency:'Traiter si miellat abondant.'},
+  {id:'sorgho_charbon',crop:'sorghum',name:'Charbon Couvert',pathogen:'Sporisorium sorghi',severity:'medium',emoji:'🌾',
+   cv:{color:'silver_grey',location:'old_leaves'},
+   treatment:'Traitement semences fongicide prochaine saison.',
+   prevention:'Semences certifiées.',urgency:'Détruire épis avant sporulation.'},
+  {id:'sorgho_striga',crop:'sorghum',name:'Striga (Sorgho)',pathogen:'Striga hermonthica',severity:'high',emoji:'🌾',
+   cv:{host_stunting:'high',color_hsv:'yellow'},
+   treatment:'Fumure organique pour aider le sorgho.',
+   prevention:'Rotation. Variétés tolérantes.',urgency:'Désherber avant floraison Striga.'},
+  {id:'sorgho_carence_fe',crop:'sorghum',name:'Carence en Fer',pathogen:'Nutritionnelle',severity:'low',emoji:'🌾',
+   cv:{color_hsv:'yellow_white',uniform_yellowing:'true'},
+   treatment:'Chélate de fer si sol calcaire.',
+   prevention:'pH sol 6–6.5. Matière organique.',urgency:'Corriger avant floraison.'},
+  {id:'sorgho_helmintho',crop:'sorghum',name:'Helminthosporiose du Sorgho',pathogen:'Exserohilum turcicum',severity:'medium',emoji:'🌾',
+   cv:{shape:'long_ellipsoid',color:'tan_brown'},
+   treatment:'Rotation des cultures.',
+   prevention:'Semences certifiées.',urgency:'Surveiller sur 1 semaine.'},
+  {id:'sorgho_mildiou',crop:'sorghum',name:'Mildiou du Sorgho',pathogen:'Sclerospora graminicola',severity:'high',emoji:'🌾',
+   cv:{color:'white_downy',color_hsv:'yellow_white'},
+   treatment:'Éliminer plants infectés.',
+   prevention:'Semences certifiées. Rotation.',urgency:'Urgence — éliminer immédiatement.'},
+
+  /* ───── RIZ ───── */
+  {id:'riz_pyriculariose',crop:'rice',name:'Pyriculariose (Claquage)',pathogen:'Magnaporthe oryzae',severity:'high',emoji:'🌾',
+   cv:{shape:'diamond',color:'tan_brown',circularity:'<0.5'},
+   treatment:'Tricyclazole 75 WP 0.4 kg/ha. Deux applications à 10j d\'intervalle.',
+   prevention:'Variétés résistantes FKR 56N. Éviter excès azote.',urgency:'Traiter immédiatement — perte totale possible.'},
+  {id:'riz_bactériose',crop:'rice',name:'Bactériose du Riz (BLB)',pathogen:'Xanthomonas oryzae',severity:'high',emoji:'🌾',
+   cv:{color:'yellow',location:'leaf_tips'},
+   treatment:'Drainage du champ.',
+   prevention:'Éviter entrer dans parcelle mouillée.',urgency:'Drainer rapidement.'},
+  {id:'riz_rymv',crop:'rice',name:'Panachure Jaune (RYMV)',pathogen:'Rice Yellow Mottle Virus',severity:'high',emoji:'🌾',
+   cv:{color_hsv:'yellow_white',host_stunting:'high'},
+   treatment:'Variétés résistantes uniquement (FKR).',
+   prevention:'Semences certifiées. Désinfection outils.',urgency:'Urgence — virus. Arracher plants atteints.'},
+  {id:'riz_foreur',crop:'rice',name:'Foreur (Diopsis)',pathogen:'Diopsis thoracica',severity:'medium',emoji:'🌾',
+   cv:{location:'central_whorl',hole_ratio:'>0.05'},
+   treatment:'Lutte intégrée.',
+   prevention:'Labour. Rotation.',urgency:'Surveiller dès repiquage.'},
+  {id:'riz_cercosporiose',crop:'rice',name:'Cercosporiose du Riz',pathogen:'Cercospora oryzae',severity:'low',emoji:'🌾',
+   cv:{shape:'cigar',color:'tan_brown'},
+   treatment:'Fertilisation potassique équilibrée.',
+   prevention:'Potasse K2O.',urgency:'Corriger nutrition avant épiaison.'},
+
+  /* ───── TOMATE ───── */
+  {id:'tomate_mildiou',crop:'tomato',name:'Mildiou de la Tomate',pathogen:'Phytophthora infestans',severity:'high',emoji:'🍅',
+   cv:{color:'dark_brown',texture:'smooth_to_powdery'},
+   treatment:'Cuivre (bouillie bordelaise). Ne pas mouiller le feuillage.',
+   prevention:'Espacement 50 cm. Paillage. Traitement tous les 10–14 j.',urgency:'Urgence — traiter sous 24h.'},
+  {id:'tomate_alternariose',crop:'tomato',name:'Alternariose (tache noire)',pathogen:'Alternaria solani',severity:'medium',emoji:'🍅',
+   cv:{color:'blackish',circularity:'>0.7'},
+   treatment:'Supprimer feuilles basses. Chlorothalonil.',
+   prevention:'Rotation 3 ans. Semences saines.',urgency:'Traiter sous 5 jours.'},
+  {id:'tomate_tylcv',crop:'tomato',name:'Virus TYLCV (cuillère)',pathogen:'TYLCV',severity:'high',emoji:'🍅',
+   cv:{color_hsv:'yellow',rolling:'tight_cylinder'},
+   treatment:'Filets anti-insectes en pépinière.',
+   prevention:'Variétés résistantes. Contrôler aleurodes.',urgency:'Urgence — virus. Retirer plants.'},
+  {id:'tomate_septoriose',crop:'tomato',name:'Septoriose',pathogen:'Septoria lycopersici',severity:'medium',emoji:'🍅',
+   cv:{spots:'numerous_small_circles',color:'white_downy'},
+   treatment:'Fongicide protecteur par temps humide.',
+   prevention:'Éviter arrosage foliaire.',urgency:'Traiter sous 5 jours.'},
+  {id:'tomate_bacteriose',crop:'tomato',name:'Flétrissement Bactérien',pathogen:'Ralstonia solanacearum',severity:'high',emoji:'🍅',
+   cv:{droop_angle:'>50',color_hsv:'green'},
+   treatment:'Ne pas replanter solanacées 3 ans.',
+   prevention:'Rotation. Drainage.',urgency:'Arracher immédiatement.'},
+  {id:'tomate_tuta',crop:'tomato',name:'Mineuse Tuta absoluta',pathogen:'Tuta absoluta',severity:'high',emoji:'🍅',
+   cv:{texture:'smooth_to_powdery',location:'old_leaves'},
+   treatment:'Spinosad + pièges à phéromones.',
+   prevention:'Filets. Rotation.',urgency:'Traiter immédiatement.'},
+  {id:'tomate_oidium',crop:'tomato',name:'Oïdium (Farine)',pathogen:'Leveillula taurica',severity:'medium',emoji:'🍅',
+   cv:{color:'white_downy',texture:'smooth_to_powdery'},
+   treatment:'Soufre dès premiers signes.',
+   prevention:'Aération. Éviter excès azote.',urgency:'Traiter sous 3 jours.'},
+  {id:'tomate_fusariose',crop:'tomato',name:'Fusariose',pathogen:'Fusarium oxysporum',severity:'high',emoji:'🍅',
+   cv:{color:'yellow',droop_angle:'>40'},
+   treatment:'Variétés hybrides résistantes (mention F).',
+   prevention:'Rotation 4 ans. Sol drainant.',urgency:'Arracher et détruire.'},
+
+  /* ───── OIGNON ───── */
+  {id:'oignon_tache_pourpre',crop:'onion',name:'Tache Pourpre',pathogen:'Alternaria porri',severity:'medium',emoji:'🧅',
+   cv:{color:'purple_violet',shape:'long_ellipsoid'},
+   treatment:'Mancozèbe 2 kg/ha.',
+   prevention:'Réduire humidité. Espacement.',urgency:'Traiter sous 5 jours.'},
+  {id:'oignon_thrips',crop:'onion',name:'Thrips',pathogen:'Thrips tabaci',severity:'medium',emoji:'🧅',
+   cv:{color:'silver_grey',density:'high_clusters'},
+   treatment:'Neem tôt le matin.',
+   prevention:'Pièges collants bleus.',urgency:'Traiter si >5 thrips/feuille.'},
+  {id:'oignon_mildiou',crop:'onion',name:'Mildiou de l\'Oignon',pathogen:'Peronospora destructor',severity:'high',emoji:'🧅',
+   cv:{color:'white_downy',location:'leaf_tips'},
+   treatment:'Éviter densité trop élevée.',
+   prevention:'Rotation 3 ans. Drainage.',urgency:'Traiter immédiatement.'},
+  {id:'oignon_carence_n',crop:'onion',name:'Carence en Azote (Oignon)',pathogen:'Nutritionnelle',severity:'low',emoji:'🧅',
+   cv:{color_hsv:'yellow',uniform_yellowing:'true'},
+   treatment:'Urée pour stimuler production feuilles.',
+   prevention:'NPK équilibré.',urgency:'Corriger avant bulbaison.'},
+  {id:'oignon_alternariose',crop:'onion',name:'Alternariose (Oignon)',pathogen:'Alternaria alternata',severity:'medium',emoji:'🧅',
+   cv:{color:'tan_brown',spots:'numerous_small_circles'},
+   treatment:'Fongicide préventif.',
+   prevention:'Rotation. Éviter blessures.',urgency:'Traiter sous 5 jours.'},
+
+  /* ───── COTON ───── */
+  {id:'coton_bacteriose',crop:'cotton',name:'Bactériose Angulaire',pathogen:'Xanthomonas citri pv. malvacearum',severity:'high',emoji:'🌿',
+   cv:{shape:'cigar',color:'black'},
+   treatment:'Variétés résistantes. Traitement cuivre.',
+   prevention:'Semences saines.',urgency:'Traiter sous 48h.'},
+  {id:'coton_maladie_bleue',crop:'cotton',name:'Maladie Bleue (Virus)',pathogen:'Cotton leafroll dwarf virus',severity:'high',emoji:'🌿',
+   cv:{rolling:'tight_cylinder',color:'dark_brown'},
+   treatment:'Traiter pucerons vecteurs sans attendre.',
+   prevention:'Aphicide préventif.',urgency:'Urgence — traiter immédiatement.'},
+  {id:'coton_helicoverpa',crop:'cotton',name:'Chenille des Capsules (Helicoverpa)',pathogen:'Helicoverpa armigera',severity:'high',emoji:'🌿',
+   cv:{hole_ratio:'>0.15',color:'tan_brown'},
+   treatment:'Indoxacarbe — traitement urgent.',
+   prevention:'Pièges à phéromones. Rotation.',urgency:'Urgence — protéger la fibre.'},
+  {id:'coton_pucerons',crop:'cotton',name:'Pucerons du Coton',pathogen:'Aphis gossypii',severity:'medium',emoji:'🌿',
+   cv:{density:'high_clusters',color:'black_green'},
+   treatment:'Neem. Surveiller fumagine.',
+   prevention:'Favoriser coccinelles.',urgency:'Traiter si feuilles recouvertes de miellat.'},
+  {id:'coton_carence_k',crop:'cotton',name:'Carence en Potassium',pathogen:'Nutritionnelle',severity:'medium',emoji:'🌿',
+   cv:{color:'amber_to_black',location:'leaf_tips'},
+   treatment:'Apport K2O — indispensable qualité fibre.',
+   prevention:'Analyse sol. NPK équilibré.',urgency:'Corriger avant floraison.'},
+  {id:'coton_verticilliose',crop:'cotton',name:'Verticilliose',pathogen:'Verticillium dahliae',severity:'medium',emoji:'🌿',
+   cv:{color:'yellow',location:'old_leaves'},
+   treatment:'Rotation cultures.',
+   prevention:'Éviter sols humides début cycle.',urgency:'Rotation obligatoire.'},
+];
+
+/* ================================================================
+   DIAGNOSTIC — ÉTAT GLOBAL
+   ================================================================ */
+let _diagJSON = null;
+let _diagPhoto = null;
+
+/* ================================================================
+   DIAGNOSTIC — GESTION PHOTO & JSON
+   ================================================================ */
+/* ================================================================
+   DIAGNOSTIC — EXTRACTION DE FEATURES PAR CANVAS (pure JS)
+   Pipeline : charger → redimensionner → HSV par pixel → morphologie
+   ================================================================ */
+
+function rgbToHsv(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0, s = max === 0 ? 0 : d / max, v = max;
+  if (d !== 0) {
+    if (max === r)      h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else                h = (r - g) / d + 4;
+    h = h * 60; if (h < 0) h += 360;
+  }
+  return { h, s, v };
+}
+
+function setExtractionProgress(pct, label) {
+  document.getElementById('extraction-bar').style.width  = pct + '%';
+  document.getElementById('extraction-step').textContent = label;
+}
+
+async function extractFeaturesFromCanvas(imgEl, cropValue) {
+  /* ── Step 1 : draw image to offscreen canvas (max 400×400) ── */
+  setExtractionProgress(10, 'Chargement de l\'image…');
+  await new Promise(r => setTimeout(r, 50));
+
+  const MAX = 400;
+  const scale = Math.min(MAX / imgEl.naturalWidth, MAX / imgEl.naturalHeight, 1);
+  const W = Math.round(imgEl.naturalWidth  * scale);
+  const H = Math.round(imgEl.naturalHeight * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(imgEl, 0, 0, W, H);
+
+  setExtractionProgress(25, 'Analyse couleur HSV…');
+  await new Promise(r => setTimeout(r, 50));
+
+  const data = ctx.getImageData(0, 0, W, H).data;
+  const total = W * H;
+
+  /* ── Step 2 : classify each pixel by HSV ── */
+  // Counters
+  let cYellow = 0, cBrownNec = 0, cBlackNec = 0, cWhitePow = 0, cGreen = 0, cOther = 0;
+  // Grid for spatial analysis (3×3 zones)
+  const grid = Array.from({length:9}, () => ({ yellow:0, brown:0, green:0, total:0 }));
+
+  for (let i = 0; i < total; i++) {
+    const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+    const { h, s, v } = rgbToHsv(r, g, b);
+
+    // Zone index (3×3 grid)
+    const px = i % W, py = Math.floor(i / W);
+    const gz = Math.floor(py / (H/3)) * 3 + Math.floor(px / (W/3));
+    const zone = grid[Math.min(gz, 8)];
+    zone.total++;
+
+    // Low saturation / near-white → white powder or overexposed
+    if (s < 0.12 && v > 0.80) { cWhitePow++; continue; }
+    // Very dark → black necrosis
+    if (v < 0.15) { cBlackNec++; zone.brown++; continue; }
+    // Skip very dull pixels (shadow/background)
+    if (s < 0.08 && v < 0.6) { cOther++; continue; }
+
+    // Healthy green: h 70–165, s>0.25, v>0.20
+    if (h >= 70 && h <= 165 && s >= 0.25 && v >= 0.20) {
+      cGreen++; zone.green++; continue;
+    }
+    // Yellowing: h 40–75, s>0.15
+    if (h >= 40 && h < 72 && s >= 0.15) {
+      cYellow++; zone.yellow++; continue;
+    }
+    // Brown necrosis: h 10–42, s>0.20, v 0.15–0.70
+    if (h >= 10 && h < 43 && s >= 0.20 && v >= 0.15 && v <= 0.72) {
+      cBrownNec++; zone.brown++; continue;
+    }
+    // Orange-red (rust pustules): h 0–18, s>0.35
+    if ((h <= 18 || h >= 345) && s >= 0.35) {
+      cBrownNec += 0.5; cYellow += 0.5; zone.brown++;  continue;
+    }
+    cOther++;
+  }
+
+  const counted = cYellow + cBrownNec + cBlackNec + cWhitePow + cGreen + cOther || 1;
+  const color_metrics = {
+    yellowing_ratio:      +( cYellow   / counted).toFixed(3),
+    brown_necrosis_ratio: +( cBrownNec / counted).toFixed(3),
+    black_necrosis_ratio: +( cBlackNec / counted).toFixed(3),
+    white_powder_ratio:   +( cWhitePow / counted).toFixed(3),
+    healthy_green_ratio:  +( cGreen    / counted).toFixed(3),
+  };
+
+  setExtractionProgress(50, 'Détection des taches…');
+  await new Promise(r => setTimeout(r, 50));
+
+  /* ── Step 3 : spot detection via simple connected-component on lesion mask ── */
+  // Build binary lesion mask (non-green, non-background)
+  const mask = new Uint8Array(total);
+  for (let i = 0; i < total; i++) {
+    const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+    const { h, s, v } = rgbToHsv(r, g, b);
+    const isLesion = !(h >= 70 && h <= 165 && s >= 0.22 && v >= 0.20)
+                   && s >= 0.10 && v >= 0.12;
+    mask[i] = isLesion ? 1 : 0;
+  }
+
+  // Flood-fill connected components (4-connectivity, limited to 2000 iterations/component)
+  const visited = new Uint8Array(total);
+  const components = [];
+  for (let i = 0; i < total; i++) {
+    if (!mask[i] || visited[i]) continue;
+    const stack = [i]; visited[i] = 1;
+    let size = 0, minX = W, maxX = 0, minY = H, maxY = 0, iters = 0;
+    while (stack.length && iters++ < 2000) {
+      const idx = stack.pop(); size++;
+      const x = idx % W, y = Math.floor(idx / W);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      const neighbors = [idx-1, idx+1, idx-W, idx+W];
+      for (const n of neighbors) {
+        if (n >= 0 && n < total && mask[n] && !visited[n]) {
+          visited[n] = 1; stack.push(n);
+        }
+      }
+    }
+    if (size >= 8) components.push({ size, w: maxX-minX+1, h: maxY-minY+1, cx: (minX+maxX)/2, cy: (minY+maxY)/2 });
+  }
+
+  setExtractionProgress(70, 'Analyse morphologique…');
+  await new Promise(r => setTimeout(r, 50));
+
+  const spot_count = components.length;
+  const avg_spot_size_pixels = spot_count > 0
+    ? Math.round(components.reduce((s,c) => s + c.size, 0) / spot_count * (1/scale/scale))
+    : 0;
+  const rawAspects = components.map(c => c.w > 0 && c.h > 0 ? Math.max(c.w/c.h, c.h/c.w) : 1);
+  const avg_aspect_ratio = rawAspects.length > 0
+    ? +(rawAspects.reduce((a,b) => a+b, 0) / rawAspects.length).toFixed(2)
+    : 1.0;
+
+  // Classify spot shape
+  let spot_shape = 'irregular';
+  if (spot_count === 0)                       spot_shape = 'none';
+  else if (avg_aspect_ratio >= 3.5)           spot_shape = 'elongated_cigar';
+  else if (avg_aspect_ratio >= 2.2)           spot_shape = 'elongated';
+  else if (avg_aspect_ratio <= 1.4)           spot_shape = 'circular';
+  else                                         spot_shape = 'oval';
+
+  // Edge definition: sharp if brown/black necrosis boundaries are high-contrast
+  const edge_definition = color_metrics.brown_necrosis_ratio > 0.05 && color_metrics.healthy_green_ratio > 0.3
+    ? 'sharp' : 'diffuse';
+
+  setExtractionProgress(85, 'Analyse spatiale…');
+  await new Promise(r => setTimeout(r, 50));
+
+  /* ── Step 4 : Spatial distribution ── */
+  // Orientation: if spots cluster along horizontal bands → parallel_to_veins, else random
+  const midCols = components.filter(c => c.cx > W*0.25 && c.cx < W*0.75);
+  const orientation = (midCols.length / (spot_count || 1)) > 0.6 ? 'parallel_to_veins' : 'random';
+
+  // Density map
+  let density_map = 'distributed';
+  if (spot_count <= 3)       density_map = 'localized_clusters';
+  else if (spot_count >= 15) density_map = 'spreading';
+
+  // is_on_margins: spots near left/right edges?
+  const marginSpots = components.filter(c => c.cx < W*0.15 || c.cx > W*0.85);
+  const is_on_margins = marginSpots.length / (spot_count || 1) > 0.3;
+
+  // is_on_midrib: spots in vertical center band?
+  const midribSpots = components.filter(c => c.cx > W*0.40 && c.cx < W*0.60);
+  const is_on_midrib = midribSpots.length / (spot_count || 1) > 0.25;
+
+  /* ── Step 5 : Structural integrity ── */
+  const holes_count = components.filter(c => c.size < 20).length;
+  const leaf_deformation_index = +(Math.min(color_metrics.brown_necrosis_ratio * 0.4 + color_metrics.black_necrosis_ratio * 0.8, 0.95)).toFixed(2);
+  const edge_tattering = holes_count > 5 ? 'high' : holes_count > 2 ? 'medium' : 'low';
+
+  /* ── Step 6 : Image quality ── */
+  const avgV = Array.from({length: Math.min(total, 5000)}, (_, i) => {
+    const idx = Math.floor(i * total / 5000);
+    return rgbToHsv(data[idx*4], data[idx*4+1], data[idx*4+2]).v;
+  }).reduce((a,b) => a+b, 0) / 5000;
+  const image_brightness = avgV > 0.7 ? 'bright' : avgV > 0.4 ? 'optimal' : 'dark';
+
+  setExtractionProgress(100, 'Extraction terminée ✓');
+
+  return {
+    extracted_features: {
+      color_metrics,
+      morphological_metrics: {
+        spot_count,
+        avg_spot_size_pixels,
+        avg_aspect_ratio,
+        spot_shape,
+        edge_definition,
+      },
+      spatial_distribution: {
+        orientation,
+        density_map,
+        is_on_margins,
+        is_on_midrib,
+      },
+      structural_integrity: {
+        holes_count,
+        leaf_deformation_index,
+        edge_tattering,
+      },
+    },
+    metadata: {
+      crop_detected: cropValue,
+      image_brightness,
+      analysis_timestamp: new Date().toISOString(),
+      extraction_method: 'canvas_hsv_js',
+      image_resolution: `${imgEl.naturalWidth}x${imgEl.naturalHeight}`,
+    },
+  };
+}
+
+function toggleJsonPreview() {
+  const ta = document.getElementById('jsonInput');
+  const ch = document.getElementById('json-chevron');
+  const open = ta.style.display === 'block';
+  ta.style.display = open ? 'none' : 'block';
+  ch.className = open ? 'ti ti-chevron-down' : 'ti ti-chevron-up';
+}
+
+/* ================================================================
+   DIAGNOSTIC — GESTION PHOTO
+   ================================================================ */
+function onPhotoSelected(input) {
+  const file = input.files[0]; if (!file) return;
+  _diagPhoto = file;
+  _diagJSON  = null;
+
+  const preview = document.getElementById('previewImg');
+  const url = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  preview.src = url;
+  document.getElementById('uploadIcon').className   = 'ti ti-photo';
+  document.getElementById('uploadLabel').textContent = file.name;
+  document.getElementById('extraction-progress').style.display = 'block';
+  document.getElementById('diag-btn').disabled  = true;
+  document.getElementById('diag-btn').style.opacity = '0.4';
+
+
+  /* Fonction interne — extraire features puis activer le bouton */
+  async function doExtract() {
+    try {
+      const cropValue = document.getElementById('diag-crop-select').value;
+      const result = await extractFeaturesFromCanvas(preview, cropValue);
+      _diagJSON = result;
+      document.getElementById('jsonInput').value = JSON.stringify(result, null, 2);
+      document.getElementById('json-preview-wrap').style.display = 'block';
+      document.getElementById('extraction-step').textContent = '✓ Prêt — cliquez sur Lancer le diagnostic';
+    } catch(e) {
+      document.getElementById('extraction-step').textContent = '⚠ Erreur : ' + e.message;
+    } finally {
+      /* Toujours activer le bouton */
+      const btn = document.getElementById('diag-btn');
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    }
+  }
+
+  /* Si image deja en cache, onload ne se declenche pas */
+  if (preview.complete && preview.naturalWidth > 0) {
+    doExtract();
+  } else {
+    preview.onload = doExtract;
+    preview.onerror = () => {
+      document.getElementById('extraction-step').textContent = '⚠ Impossible de lire l\'image';
+      const btn = document.getElementById('diag-btn');
+      btn.disabled = false;
+      btn.style.opacity = '0.6';
+    };
+  }
+}
+
+/* ================================================================
+   DIAGNOSTIC — MOTEUR DE MATCHING v2 (cv_thresholds natif)
+   ================================================================ */
+function matchDisease(disease, features) {
+  if (!disease.cv) return 0;
+  let score = 0, checks = 0;
+  for (const [field, threshold] of Object.entries(disease.cv)) {
+    const observed = observeField(field, features);
+    const result   = _parseThresh(threshold, observed);
+    if (result !== null) { score += result; checks++; }
+  }
+  return checks > 0 ? Math.round((score / checks) * 100) : 0;
+}
+
+function runRuleMatcher(features, cropDetected) {
+  const crop = (cropDetected || 'maize').toLowerCase();
+  const cropMap = {
+    maize:'maize', mais:'maize', corn:'maize',
+    mil:'pearl_millet', pearl_millet:'pearl_millet', millet:'pearl_millet',
+    sorghum:'sorghum', sorgho:'sorghum',
+    rice:'rice', riz:'rice',
+    tomato:'tomato', tomate:'tomato',
+    onion:'onion', oignon:'onion',
+    cotton:'cotton', coton:'cotton',
+  };
+  const nc = cropMap[crop] || crop;
+  return SYMPTOMS_DB
+    .filter(d => d.crop === nc)
+    .map(d => ({ ...d, confidence: matchDisease(d, features) }))
+    .filter(d => d.confidence >= 20)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 3);
+}
+
+/* ================================================================
+   DIAGNOSTIC — RENDU DES RÉSULTATS
+   ================================================================ */
+function severityBadge(sev) {
+  const map = { high: ['badge-red','Grave'], medium: ['badge-amber','Modérée'], low: ['badge-green','Faible'] };
+  const [cls, lbl] = map[sev] || ['badge-green','Faible'];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+function confidenceBar(pct) {
+  const color = pct >= 70 ? 'var(--green-l)' : pct >= 45 ? 'var(--amber-l)' : 'var(--txt2)';
+  return `<div style="height:5px;background:var(--bg3);border-radius:3px;margin:6px 0 2px">
+    <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .6s"></div>
+  </div><div style="font-size:10px;color:var(--txt2)">Correspondance : ${pct}%</div>`;
+}
+
+function renderDiagResults(matches, features, meta) {
+  /* metadata bar */
+  const crop = meta.crop_detected || '—';
+  const ts   = meta.analysis_timestamp ? new Date(meta.analysis_timestamp).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+  document.getElementById('diag-meta').innerHTML = `
+    <span class="badge badge-blue"><i class="ti ti-plant" style="font-size:11px"></i> ${crop}</span>
+    <span class="badge" style="background:var(--bg3);color:var(--txt2)"><i class="ti ti-clock" style="font-size:11px"></i> ${ts}</span>
+    <span class="badge" style="background:var(--bg3);color:var(--txt2)"><i class="ti ti-brightness" style="font-size:11px"></i> ${meta.image_brightness||'—'}</span>`;
+
+  /* disease cards */
+  const container = document.getElementById('diag-cards');
+  if (!matches.length) {
+    const bright = meta.image_brightness || 'optimal';
+    const qualityTip = bright === 'dark' ? 'Image trop sombre — éclairez la feuille en pleine lumière naturelle.' : bright === 'bright' ? 'Image surexposée — photographiez à l\'ombre ou inclinez légèrement.' : 'Assurez-vous que la zone symptomatique occupe au moins 60% du cadre.';
+    container.innerHTML = `<div class="card" style="border-left:3px solid var(--amber-l);padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <i class="ti ti-photo-off" style="font-size:28px;color:var(--amber-l)"></i>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--txt)">Aucune maladie identifiée</div>
+          <div style="font-size:11px;color:var(--txt2);margin-top:2px">Confiance insuffisante sur toutes les pathologies</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--txt);margin-bottom:12px;line-height:1.6">
+        <strong style="color:var(--amber)">Pourquoi ?</strong> Les symptômes visibles ne correspondent à aucun pattern de la base locale avec une confiance ≥ 20%.<br><br>
+        <strong style="color:var(--amber)">Qualité photo :</strong> ${qualityTip}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="background:var(--blue-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+          <i class="ti ti-camera-rotate" style="font-size:16px;color:var(--blue-l);flex-shrink:0;margin-top:1px"></i>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#1E3A8A">Reprendre la photo</div>
+            <div style="font-size:11px;color:#1E40AF;margin-top:2px">Feuille bien centrée · Lumière naturelle · Symptômes bien visibles · Distance 15–25 cm</div>
+          </div>
+        </div>
+        <div style="background:var(--green-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+          <i class="ti ti-message-chatbot" style="font-size:16px;color:var(--green-l);flex-shrink:0;margin-top:1px"></i>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#1B4332">Décrire les symptômes dans le chatbot</div>
+            <div style="font-size:11px;color:#2D6A4F;margin-top:2px">Allez dans l'onglet Assistant et décrivez ce que vous observez (couleur, forme, localisation)</div>
+          </div>
+        </div>
+        <div style="background:var(--amber-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+          <i class="ti ti-wifi" style="font-size:16px;color:var(--amber-l);flex-shrink:0;margin-top:1px"></i>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#78350F">Activer l'analyse IA (mode en ligne)</div>
+            <div style="font-size:11px;color:#92400E;margin-top:2px">En ligne, l'IA Gemini analyse vos features en profondeur et peut identifier des cas rares non présents dans la base locale</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    container.innerHTML = matches.map((d, i) => `
+      <div class="card" style="margin-bottom:10px;border-left:3px solid ${i===0?'var(--red-l)':'var(--brd)'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="disease-icon" style="background:${i===0?'var(--red-xl)':'var(--bg2)'}">${d.emoji}</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--txt)">${d.name}</div>
+              <div style="font-size:11px;color:var(--txt2);margin-top:1px;font-style:italic">${d.pathogen}</div>
+            </div>
+          </div>
+          ${severityBadge(d.severity)}
+        </div>
+        ${confidenceBar(d.confidence)}
+        <div style="margin-top:10px;font-size:12px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Traitement</div>
+        <div style="font-size:12px;color:var(--txt);margin-top:3px;line-height:1.55">${d.treatment}</div>
+        <div style="margin-top:8px;font-size:12px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Prévention</div>
+        <div style="font-size:12px;color:var(--txt);margin-top:3px;line-height:1.55">${d.prevention}</div>
+        ${d.severity==='high'?`<div style="margin-top:10px;padding:8px 10px;background:var(--red-xl);border-radius:8px;font-size:12px;color:#7F1D1D;display:flex;gap:6px;align-items:flex-start"><i class="ti ti-alert-triangle" style="font-size:14px;flex-shrink:0;margin-top:1px"></i>${d.urgency}</div>`:''}
+      </div>`).join('');
+  }
+
+  /* feature bars */
+  const cm = features.color_metrics || {};
+  const mm = features.morphological_metrics || {};
+  const featureBars = [
+    { label: 'Jaunissement', val: Math.round((cm.yellowing_ratio||0)*100), color:'#F59E0B' },
+    { label: 'Nécrose brune', val: Math.round((cm.brown_necrosis_ratio||0)*100), color:'#92400E' },
+    { label: 'Nécrose noire', val: Math.round((cm.black_necrosis_ratio||0)*100), color:'#1F2937' },
+    { label: 'Poudre blanche', val: Math.round((cm.white_powder_ratio||0)*100), color:'#6B7280' },
+    { label: 'Tissu sain', val: Math.round((cm.healthy_green_ratio||0)*100), color:'var(--green-l)' },
+  ];
+  document.getElementById('diag-feature-bars').innerHTML = featureBars.map(f => `
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="color:var(--txt2)">${f.label}</span>
+        <span style="font-weight:600;color:var(--txt)">${f.val}%</span>
+      </div>
+      <div style="height:7px;background:var(--bg3);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${f.val}%;background:${f.color};border-radius:4px;transition:width .6s"></div>
+      </div>
+    </div>`).join('') +
+    `<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--brd);font-size:12px;color:var(--txt2)">
+      <b style="color:var(--txt)">${mm.spot_count||0}</b> taches détectées · forme <b style="color:var(--txt)">${mm.spot_shape||'—'}</b> · ratio L/l <b style="color:var(--txt)">${mm.avg_aspect_ratio||'—'}</b>
+    </div>`;
+
+  document.getElementById('diag-common-card').style.display = 'none';
+  document.getElementById('diag-results').style.display = 'block';
+}
+
+/* ================================================================
+   DIAGNOSTIC — CLAUDE VISION API (analyse directe par image)
+   Envoie l'image réelle en base64 + contexte + métriques locales
+   ================================================================ */
+
+/* Helper : convertit le fichier photo en base64 JPEG (max 1000px) */
+async function photoToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1000;
+        const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const b64 = canvas.toDataURL('image/jpeg', 0.80).split(',')[1];
+        resolve(b64);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Formate le texte Markdown minimal en HTML lisible */
+function mdToHtml(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^#{1,3}\s+(.+)$/gm, '<div style="font-size:13px;font-weight:700;color:var(--txt);margin:10px 0 4px">$1</div>')
+    .replace(/^[-•]\s+(.+)$/gm, '<div style="padding-left:10px;margin-top:3px">• $1</div>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+async function callClaudeAnalysis(featuresJSON, matches) {
+  const aiCard = document.getElementById('diag-ai-card');
+  const aiText = document.getElementById('diag-ai-text');
+  aiCard.style.display = 'block';
+  aiText.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;color:var(--txt2);font-size:12px;padding:8px 0">
+      <div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>
+      <span>Analyse visuelle de l'image par IA Gemini…</span>
+    </div>`;
+
+  const crop = document.getElementById('diag-crop-select');
+  const cropLabel = crop ? crop.options[crop.selectedIndex]?.text || 'culture inconnue' : 'culture inconnue';
+  const topMatches = matches.length
+    ? matches.map(m => `- ${m.name} (${m.pathogen}) — correspondance locale : ${m.confidence}%`).join('\n')
+    : 'Aucune maladie identifiée par le moteur local';
+
+  const cm  = featuresJSON.color_metrics || {};
+  const mm  = featuresJSON.morphological_metrics || {};
+  const meta = _diagJSON?.metadata || {};
+
+  const metricsResume = `Couleurs : vert sain ${Math.round((cm.healthy_green_ratio||0)*100)}%, jaunissement ${Math.round((cm.yellowing_ratio||0)*100)}%, nécrose brune ${Math.round((cm.brown_necrosis_ratio||0)*100)}%, nécrose noire ${Math.round((cm.black_necrosis_ratio||0)*100)}%, poudre blanche ${Math.round((cm.white_powder_ratio||0)*100)}%.
+Morphologie : ${mm.spot_count||0} taches détectées, forme ${mm.spot_shape||'—'}, rapport L/l moyen ${mm.avg_aspect_ratio||'—'}, taille moy ${mm.avg_spot_size_pixels||0}px.
+Luminosité image : ${meta.image_brightness||'—'}, résolution : ${meta.image_resolution||'—'}.`;
+
+  try {
+    // Convertir la photo en base64
+    let imageContent = null;
+    if (_diagPhoto) {
+      try {
+        const b64 = await photoToBase64(_diagPhoto);
+        imageContent = { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } };
+      } catch(imgErr) {
+        console.warn('Impossible de lire la photo:', imgErr);
+      }
+    }
+
+    const userContent = [];
+
+    // Si on a l'image, on l'ajoute en premier
+    if (imageContent) {
+      userContent.push(imageContent);
+    }
+
+    userContent.push({
+      type: 'text',
+      content: undefined, // éviter confusion
+      text: `Culture photographiée : ${cropLabel}
+
+${imageContent ? "Tu vois ci-dessus la photo réelle de la plante malade." : "ATTENTION : image non disponible — base-toi uniquement sur les métriques."}
+
+Métriques extraites par analyse pixel-level :
+${metricsResume}
+
+Diagnostic du moteur local (règles heuristiques) :
+${topMatches}
+
+En tant que phytopathologiste expert pour l'Afrique de l'Ouest et le Burkina Faso, réponds en français de façon structurée et directement utile pour un agriculteur burkinabè :
+
+**1. Diagnostic visuel** — Qu'est-ce que tu vois sur la photo ? Identifie précisément la maladie ou le problème (couleurs, formes, répartition). Si plusieurs hypothèses, classe-les par probabilité.
+
+**2. Validation ou correction** — Le diagnostic local est-il correct, partiel ou erroné ? Explique en une phrase.
+
+**3. Plan de traitement (14 jours)** — Détaille : J0, J3, J7, J14. Utilise des produits disponibles au Burkina Faso (neem, bouillie bordelaise, mancozèbe, produits MASA).
+
+**4. Urgence** — Ce cas nécessite-t-il un technicien agricole immédiatement ? Critères pour savoir quand agir d'urgence.
+
+Sois concis et pratique. Maximum 250 mots.`
+    });
+
+    const resp = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        has_image: !!imageContent,
+        max_tokens: 1000,
+        system: `Tu es un phytopathologiste expert spécialisé dans les cultures du Burkina Faso et de l'Afrique de l'Ouest sahélienne. Tu as accès à des photos de plantes malades et des métriques d'analyse d'image. Réponds toujours en français, de façon structurée avec des sections claires (en gras). Sois direct, pratique, adapté aux ressources disponibles en zone rurale africaine.`,
+        messages: [{ role: 'user', content: userContent }]
+      })
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data = await resp.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+
+    aiText.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:0.5px solid var(--brd)">
+        <i class="ti ti-eye" style="font-size:16px;color:var(--green-l)"></i>
+        <span style="font-size:12px;font-weight:600;color:var(--txt)">Analyse visuelle IA${imageContent ? ' · Image analysée' : ' · Métriques seules'}</span>
+        <span class="source-tag source-online" style="margin-left:auto"><i class="ti ti-brain" style="font-size:10px"></i> Gemini Vision</span>
+      </div>
+      <div style="font-size:13px;line-height:1.65;color:var(--txt)">${mdToHtml(text)}</div>`;
+
+  } catch(e) {
+    aiText.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:10px;background:var(--amber-xl);border-radius:8px">
+        <i class="ti ti-wifi-off" style="font-size:16px;color:var(--amber);flex-shrink:0;margin-top:1px"></i>
+        <div style="font-size:12px;color:#78350F">
+          <strong>Analyse IA indisponible</strong><br>
+          ${e.message || 'Vérifiez votre connexion internet.'}<br>
+          <span style="opacity:.8">Le diagnostic local ci-dessus reste valide.</span>
+        </div>
+      </div>`;
+  }
+}
+
+/* ================================================================
+   DIAGNOSTIC — ORCHESTRATION PRINCIPALE
+   ================================================================ */
+async function runDiagnosis() {
+  /* _diagJSON est rempli automatiquement par extractFeaturesFromCanvas après la photo */
+  if (!_diagJSON) {
+    alert('Veuillez d\'abord prendre ou importer une photo.');
+    return;
+  }
+  const features = _diagJSON.extracted_features;
+  const meta     = _diagJSON.metadata || {};
+
+  /* show loading */
+  document.getElementById('diag-input-card').style.display  = 'none';
+  document.getElementById('diag-common-card').style.display = 'none';
+  document.getElementById('diag-results').style.display     = 'none';
+  document.getElementById('diag-loading').style.display     = 'block';
+  document.getElementById('diag-loading-msg').textContent   = 'Matching des symptômes…';
+
+  await new Promise(r => setTimeout(r, 600));
+
+  const matches = runRuleMatcher(features, meta.crop_detected);
+
+  document.getElementById('diag-loading-msg').textContent = 'Rendu des résultats…';
+  await new Promise(r => setTimeout(r, 300));
+
+  document.getElementById('diag-loading').style.display = 'none';
+  renderDiagResults(matches, features, meta);
+
+  /* Claude Vision API if online */
+  if (isOnline) {
+    callClaudeAnalysis(features, matches);
+  }
+}
+
+function resetDiagnosis() {
+  _diagJSON = null;
+  _diagPhoto = null;
+  document.getElementById('jsonInput').value = '';
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('extraction-progress').style.display = 'none';
+  document.getElementById('json-preview-wrap').style.display = 'none';
+  document.getElementById('uploadIcon').className = 'ti ti-camera';
+  document.getElementById('uploadLabel').textContent = 'Prendre une photo ou importer';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('diag-btn').disabled = true;
+  document.getElementById('diag-btn').style.opacity = '0.4';
+  document.getElementById('diag-input-card').style.display  = 'block';
+  document.getElementById('diag-results').style.display     = 'none';
+  document.getElementById('diag-ai-card').style.display     = 'none';
+  document.getElementById('diag-common-card').style.display = 'block';
+}
+
+/* ================================================================
+   INTRANTS — BASE DE DONNÉES
+   ================================================================ */
+const INTRANTS_DB = [
+  {id:1,cat:'engrais',name:'NPK 14-23-14',brand:'SOFAMAC',compose:'N14-P23-K14+Zn',prix:18500,unit:'sac 50kg',subv:true,dispo:'En stock',cibles:['Maïs','Coton','Sorgho'],note:'Engrais de fond recommandé MASA'},
+  {id:2,cat:'engrais',name:'Urée 46%',brand:'OCP Maroc',compose:'N46',prix:16000,unit:'sac 50kg',subv:true,dispo:'En stock',cibles:['Maïs','Riz','Coton'],note:'Apport azote en couverture J+30-45'},
+  {id:3,cat:'engrais',name:'NPK 15-15-15',brand:'YARA',compose:'N15-P15-K15',prix:19500,unit:'sac 50kg',subv:false,dispo:'En stock',cibles:['Maraîchage','Légumineuses'],note:'Formule équilibrée polyvalente'},
+  {id:4,cat:'engrais',name:'DAP 18-46-0',brand:'OCP Maroc',compose:'N18-P46',prix:22000,unit:'sac 50kg',subv:true,dispo:'Disponible',cibles:['Maïs','Riz'],note:'Forte teneur phosphore, semis'},
+  {id:5,cat:'engrais',name:'Sulfate d\'ammoniaque 21%',brand:'SOFAMAC',compose:'N21-S24',prix:12000,unit:'sac 50kg',subv:false,dispo:'En stock',cibles:['Tous'],note:'Bon pour sols alcalins'},
+  {id:6,cat:'engrais',name:'NPK Coton 14-18-18+S',brand:'FASO COTON',compose:'N14-P18-K18-S6',prix:20500,unit:'sac 50kg',subv:true,dispo:'Sur commande',cibles:['Coton'],note:'Formule spéciale coton SOFITEX'},
+  {id:7,cat:'pesticide',name:'Lambdacyhalothrine 25 EC',brand:'SYNGENTA',compose:'Lambda-cyhalothrine 25g/L',prix:4500,unit:'1 L',subv:false,dispo:'En stock',cibles:['Maïs','Coton','Niébé'],note:'Pyréthrinoïde large spectre, FAW'},
+  {id:8,cat:'pesticide',name:'Dimethoate 40 EC',brand:'BAYER',compose:'Diméthoate 400g/L',prix:3800,unit:'1 L',subv:false,dispo:'En stock',cibles:['Coton','Maraîchage'],note:'Organophosphoré, jassides et pucerons'},
+  {id:9,cat:'pesticide',name:'Spinosad 480 SC',brand:'DOW AGRO',compose:'Spinosad 480g/L',prix:12500,unit:'500 mL',subv:false,dispo:'Limité',cibles:['Maïs','Légumes'],note:'Bio-insecticide, chenilles légionnaires +++'},
+  {id:10,cat:'pesticide',name:'Chlorpyrifos 480 EC',brand:'GENERIC BF',compose:'Chlorpyrifos 480g/L',prix:3200,unit:'1 L',subv:false,dispo:'En stock',cibles:['Maïs','Mil','Sorgho'],note:'Organophosphoré, large spectre'},
+  {id:11,cat:'pesticide',name:'Imidaclopride 350 SC',brand:'BAYER',compose:'Imidaclopride 350g/L',prix:5500,unit:'500 mL',subv:false,dispo:'En stock',cibles:['Coton','Maraîchage'],note:'Traitement semences ou foliaire'},
+  {id:12,cat:'fongicide',name:'Mancozèbe 80 WP',brand:'INDOFIL',compose:'Mancozèbe 800g/kg',prix:3500,unit:'1 kg',subv:false,dispo:'En stock',cibles:['Maïs','Tomate','Arachide'],note:'Contact préventif, mélangeable'},
+  {id:13,cat:'fongicide',name:'Chlorothalonil 500 SC',brand:'SYNGENTA',compose:'Chlorothalonil 500g/L',prix:4200,unit:'1 L',subv:false,dispo:'En stock',cibles:['Tomate','Arachide','Niébé'],note:'Polyvalent, cercosporiose, mildiou'},
+  {id:14,cat:'fongicide',name:'Propiconazole 250 EC',brand:'SYNGENTA',compose:'Propiconazole 250g/L',prix:6500,unit:'1 L',subv:false,dispo:'Disponible',cibles:['Maïs','Arachide','Sorgho'],note:'Systémique, rouille et helminthosporiose'},
+  {id:15,cat:'fongicide',name:'Métalaxyl + Mancozèbe',brand:'SYNGENTA (Ridomil)',compose:'Métalaxyl 40g/kg + Mancozèbe 640g/kg',prix:9500,unit:'1 kg',subv:false,dispo:'En stock',cibles:['Tomate','Mil'],note:'Anti-mildiou, traitement semences mil'},
+  {id:16,cat:'fongicide',name:'Tricyclazole 75 WP',brand:'BAYER',compose:'Tricyclazole 750g/kg',prix:8500,unit:'500 g',subv:false,dispo:'Limité',cibles:['Riz'],note:'Spécifique pyriculariose du riz'},
+  {id:17,cat:'herbicide',name:'Atrazine 80 WP',brand:'GENERIC BF',compose:'Atrazine 800g/kg',prix:2800,unit:'1 kg',subv:false,dispo:'En stock',cibles:['Maïs','Sorgho'],note:'Pré et post-levée précoce'},
+  {id:18,cat:'herbicide',name:'2,4-D Amine 720 SL',brand:'AGRIPHAR',compose:'2,4-D sel amine 720g/L',prix:2200,unit:'1 L',subv:false,dispo:'En stock',cibles:['Maïs','Céréales'],note:'Post-levée, dicotylédones, Striga'},
+  {id:19,cat:'herbicide',name:'Glyphosate 480 SL',brand:'MONSANTO',compose:'Glyphosate 480g/L',prix:3500,unit:'1 L',subv:false,dispo:'En stock',cibles:['Déchaumage','Pré-semis'],note:'Non sélectif systémique'},
+  {id:20,cat:'herbicide',name:'Pendiméthaline 330 EC',brand:'BASF',compose:'Pendiméthaline 330g/L',prix:4000,unit:'1 L',subv:false,dispo:'En stock',cibles:['Maïs','Niébé','Coton'],note:'Pré-levée, graminées et dicots'},
+  {id:21,cat:'semence',name:'Maïs hybride NK 6721',brand:'SYNGENTA NK',compose:'Hybride simple',prix:12000,unit:'sac 5kg',subv:true,dispo:'Disponible',cibles:['Maïs'],note:'6-8t/ha, tolérant sécheresse, 120j'},
+  {id:22,cat:'semence',name:'Maïs EVDT W-2 (INERA)',brand:'INERA/SOFAMAC',compose:'Variété améliorée',prix:6500,unit:'sac 5kg',subv:true,dispo:'En stock',cibles:['Maïs'],note:'Variété locale améliorée, 90 jours'},
+  {id:23,cat:'semence',name:'Niébé SARVaRi-2',brand:'IITA/INERA',compose:'Variété améliorée Striga-tolérant',prix:3500,unit:'kg',subv:true,dispo:'En stock',cibles:['Niébé'],note:'Résistant Striga, 70j, 1.5-2t/ha'},
+  {id:24,cat:'semence',name:'Sorgho SARIASSO 14',brand:'INERA',compose:'Variété améliorée',prix:2500,unit:'kg',subv:true,dispo:'En stock',cibles:['Sorgho'],note:'105 jours, tolérant stress hydrique'},
+  {id:25,cat:'semence',name:'Arachide CN 94-C',brand:'INERA/SOFAMAC',compose:'Variété améliorée',prix:4500,unit:'kg',subv:false,dispo:'Disponible',cibles:['Arachide'],note:'90j, teneur huile 50%, 2t/ha'},
+];
+
+const CAT_LABELS = {engrais:'🌱 Engrais',pesticide:'🐛 Pesticides',fongicide:'🍄 Fongicides',herbicide:'🌾 Herbicides',semence:'🌰 Semences'};
+let _intrantFilter = 'tous';
+
+function setIntrantFilter(cat, btn) {
+  _intrantFilter = cat;
+  document.querySelectorAll('#intrants-filters button').forEach(b => {
+    b.style.background = b.dataset.cat === cat ? 'var(--green)' : 'var(--bg3)';
+    b.style.color = b.dataset.cat === cat ? '#fff' : 'var(--txt)';
+  });
+  renderIntrants();
+}
+
+function renderIntrants() {
+  const q = (document.getElementById('intrants-search').value || '').toLowerCase();
+  const filtered = INTRANTS_DB.filter(i => {
+    const catOk = _intrantFilter === 'tous' || i.cat === _intrantFilter;
+    const searchOk = !q || i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q) || i.compose.toLowerCase().includes(q) || i.cibles.some(c => c.toLowerCase().includes(q));
+    return catOk && searchOk;
+  });
+
+  if (!filtered.length) {
+    document.getElementById('intrants-list').innerHTML = `<div style="text-align:center;padding:32px 16px;color:var(--txt2)"><i class="ti ti-search" style="font-size:36px;display:block;margin-bottom:10px"></i>Aucun produit trouvé</div>`;
+    return;
+  }
+
+  const bycat = {};
+  filtered.forEach(i => { if(!bycat[i.cat]) bycat[i.cat]=[]; bycat[i.cat].push(i); });
+  let html = '';
+  for (const cat in bycat) {
+    if (_intrantFilter === 'tous') html += `<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;padding:4px 2px 6px">${CAT_LABELS[cat]||cat}</div>`;
+    bycat[cat].forEach(i => {
+      html += `<div class="card" style="padding:12px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div>
+            <div style="font-weight:600;font-size:14px;color:var(--txt)">${i.name}</div>
+            <div style="font-size:11px;color:var(--txt2);margin-top:2px">${i.brand}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:16px;font-weight:700;color:var(--green)">${i.prix.toLocaleString('fr-FR')} F</div>
+            <div style="font-size:11px;color:var(--txt2)">/${i.unit}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:6px">${i.compose}</div>
+        <div style="font-size:12px;margin-bottom:8px;color:var(--txt)">🌿 ${i.cibles.join(' · ')}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          ${i.subv ? `<span class="badge" style="background:#D1FAE5;color:#065F46;border:none;font-size:11px;padding:3px 9px;border-radius:20px">✅ Subventionné MASA</span>` : ''}
+          <span class="badge" style="background:var(--blue-xl,#DBEAFE);color:var(--blue,#1E40AF);border:none;font-size:11px;padding:3px 9px;border-radius:20px">${i.dispo}</span>
+          <span class="badge" style="background:var(--bg3);color:var(--txt2);border:none;font-size:11px;padding:3px 9px;border-radius:20px">${i.note}</span>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('intrants-list').innerHTML = html;
+}
+
+/* ================================================================
+   INTRANTS — CONSEILLER IA (Gemini API)
+   ================================================================ */
+async function getAIRecommendation() {
+  const culture = document.getElementById('ai-culture').value;
+  const budget  = document.getElementById('ai-budget').value;
+  if (!culture || !budget) {
+    alert('Veuillez sélectionner une culture et un budget.');
+    return;
+  }
+  const budgetLabel = {faible:'faible (moins de 25 000 FCFA/ha)',moyen:'moyen (25 000 à 80 000 FCFA/ha)',eleve:'élevé (plus de 80 000 FCFA/ha)'}[budget];
+  const result = document.getElementById('ai-result');
+  const loading = document.getElementById('ai-loading');
+  result.style.display = 'none';
+  loading.style.display = 'block';
+
+  const productList = INTRANTS_DB.map(p => `- ${p.name} (${p.brand}) — ${p.prix.toLocaleString('fr-FR')} FCFA/${p.unit}${p.subv?' [subventionné]':''} — cibles: ${p.cibles.join(', ')}`).join('\n');
+
+  try {
+    const resp = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        has_image: false,
+        max_tokens: 1000,
+        system: `Tu es un conseiller agricole expert pour le Burkina Faso. Tu aides les agriculteurs à choisir les meilleurs intrants selon leur culture et leur budget. Réponds toujours en français, de façon claire, concise et pratique. Commence directement par les recommandations, sans préambule. Structure ta réponse avec : 1) les 2-3 produits prioritaires (avec prix et pourquoi), 2) un conseil d'application rapide, 3) une astuce économique si budget faible.`,
+        messages: [{
+          role: 'user',
+          content: `Culture : ${culture}\nBudget : ${budgetLabel}\n\nVoici les produits disponibles dans le catalogue :\n${productList}\n\nDonne-moi tes recommandations personnalisées pour cette situation.`
+        }]
+      })
+    });
+    const data = await resp.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    loading.style.display = 'none';
+    result.innerHTML = text.replace(/\n/g, '<br>');
+    result.style.display = 'block';
+  } catch(e) {
+    loading.style.display = 'none';
+    result.innerHTML = '⚠️ Impossible de contacter le conseiller IA. Vérifiez votre connexion.';
+    result.style.display = 'block';
+  }
+}
+
+/* ================================================================
+   ALERTES — ÉTAT & CONFIG
+   ================================================================ */
+let _allAlerts    = [];        // toutes les alertes reçues
+let _alertFilter  = 'tous';    // filtre actif
+let _alertWS      = null;      // WebSocket instance
+let _gpsCoords    = null;      // { lat, lon, accuracy }
+
+const DANGER_CFG = {
+  critique: { cls:'alert-high', dot:'🔴', color:'var(--red-l)',   bg:'var(--red-xl)',   label:'Critique' },
+  eleve:    { cls:'alert-high', dot:'🟠', color:'#EA580C',       bg:'#FFF7ED',        label:'Élevé'    },
+  modere:   { cls:'alert-med',  dot:'🟡', color:'var(--amber-l)', bg:'var(--amber-xl)', label:'Modéré'   },
+  faible:   { cls:'alert-low',  dot:'🟢', color:'var(--green-l)', bg:'var(--green-xl)', label:'Faible'   },
+};
+
+const TYPE_ICON = {
+  maladie:  'ti-virus',
+  ravageur: 'ti-bug',
+  meteo:    'ti-cloud-storm',
+  sol:      'ti-shovel',
+  autre:    'ti-alert-circle',
+};
+
+/* ================================================================
+   ALERTES — RENDU
+   ================================================================ */
+function timeAgo(ts) {
+  const d = Math.floor((Date.now()/1000 - ts));
+  if (d < 60)   return `Il y a ${d}s`;
+  if (d < 3600) return `Il y a ${Math.floor(d/60)}min`;
+  if (d < 86400)return `Il y a ${Math.floor(d/3600)}h`;
+  return `Il y a ${Math.floor(d/86400)}j`;
+}
+
+function renderAlerts() {
+  const list = document.getElementById('alerts-list');
+  if (!list) return;
+
+  const filtered = _alertFilter === 'tous'
+    ? _allAlerts
+    : _allAlerts.filter(a => a.danger === _alertFilter);
+
+  document.getElementById('alert-count-badge').textContent =
+    `${filtered.length} alerte${filtered.length !== 1 ? 's' : ''}`;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 16px;color:var(--txt2)">
+      <i class="ti ti-bell-off" style="font-size:36px;display:block;margin-bottom:10px"></i>
+      <div style="font-size:13px">Aucune alerte${_alertFilter !== 'tous' ? ' pour ce niveau' : ''}</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(a => {
+    const cfg  = DANGER_CFG[a.danger] || DANGER_CFG.modere;
+    const icon = TYPE_ICON[a.type]   || 'ti-alert-circle';
+    const gps  = (a.lat && a.lon)
+      ? `<span style="display:inline-flex;align-items:center;gap:3px"><i class="ti ti-map-pin" style="font-size:10px"></i>${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}</span>`
+      : '';
+    const cult = a.culture ? `<span style="background:var(--green-xl);color:#1B4332;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500">${a.culture}</span>` : '';
+
+    return `<div class="alert-item ${cfg.cls}" style="margin-bottom:8px;border-radius:10px">
+      <i class="ti ${icon} alert-icon" style="color:${cfg.color};font-size:20px;flex-shrink:0;margin-top:2px"></i>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:700;color:${cfg.color}">${cfg.dot} ${cfg.label}</span>
+          ${cult}
+        </div>
+        <div class="alert-title" style="margin-bottom:3px">${a.resume || a.message?.slice(0,100)}</div>
+        ${a.conseil ? `<div style="font-size:11px;color:var(--txt2);margin-bottom:4px;font-style:italic">💡 ${a.conseil}</div>` : ''}
+        <div class="alert-time" style="display:flex;gap:8px;flex-wrap:wrap">
+          <span>${timeAgo(a.timestamp)}</span>
+          ${gps}
+          ${a.confiance ? `<span>Confiance IA : ${a.confiance}%</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setAlertFilter(danger, btn) {
+  _alertFilter = danger;
+  document.querySelectorAll('#alert-filters button').forEach(b => {
+    const active = b.dataset.danger === danger;
+    b.style.background = active ? 'var(--txt)' : 'var(--bg3)';
+    b.style.color       = active ? 'var(--bg)'  : 'var(--txt)';
+  });
+  renderAlerts();
+}
+
+/* ================================================================
+   ALERTES — WEBSOCKET
+   ================================================================ */
+function connectAlertsWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url   = `${proto}://${location.host}/ws/alerts`;
+
+  _alertWS = new WebSocket(url);
+
+  _alertWS.onopen = () => {
+    document.getElementById('alert-ws-dot').style.background   = '#4ADE80';
+    document.getElementById('alert-ws-label').textContent      = 'Connecté — alertes en direct';
+  };
+
+  _alertWS.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.event === 'init') {
+        // Alertes initiales à la connexion
+        _allAlerts = data.alerts || [];
+        renderAlerts();
+      } else if (data.event === 'new_alert' && data.alert) {
+        // Nouvelle alerte en temps réel
+        _allAlerts.unshift(data.alert);
+        if (_allAlerts.length > 200) _allAlerts.pop();
+        renderAlerts();
+        // Flash visuel si l'onglet alertes n'est pas actif
+        const tab = document.getElementById('tab-alertes');
+        if (!tab?.classList.contains('active')) {
+          const navBtn = document.querySelector('[onclick*="alertes"]');
+          if (navBtn) navBtn.style.color = 'var(--red-l)';
+        }
+      }
+    } catch(err) { console.warn('WS parse error', err); }
+  };
+
+  _alertWS.onclose = () => {
+    document.getElementById('alert-ws-dot').style.background = 'var(--amber-l)';
+    document.getElementById('alert-ws-label').textContent    = 'Déconnecté — reconnexion…';
+    setTimeout(connectAlertsWS, 3000);
+  };
+
+  _alertWS.onerror = () => {
+    document.getElementById('alert-ws-dot').style.background = 'var(--red-l)';
+    document.getElementById('alert-ws-label').textContent    = 'Erreur de connexion';
+  };
+}
+
+/* ================================================================
+   ALERTES — GPS
+   ================================================================ */
+function startGPS() {
+  if (!navigator.geolocation) {
+    _gpsCoords = null;
+    document.getElementById('gps-label').textContent = '⚠️ GPS non disponible sur cet appareil';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      _gpsCoords = {
+        lat:      pos.coords.latitude,
+        lon:      pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      };
+      const el = document.getElementById('gps-label');
+      if (el) {
+        document.getElementById('gps-status').style.background = 'var(--green-xl)';
+        el.style.color = '#1B4332';
+        el.textContent = `📍 ${_gpsCoords.lat.toFixed(4)}, ${_gpsCoords.lon.toFixed(4)}  (±${Math.round(_gpsCoords.accuracy)}m)`;
+        // Remplacer le spinner par une icône fixe
+        const spinner = document.querySelector('#gps-status .spinner');
+        if (spinner) { spinner.outerHTML = '<i class="ti ti-map-pin" style="font-size:14px;color:#1B4332;flex-shrink:0"></i>'; }
+      }
+    },
+    (err) => {
+      _gpsCoords = null;
+      const el = document.getElementById('gps-label');
+      if (el) {
+        document.getElementById('gps-status').style.background = 'var(--amber-xl)';
+        el.style.color = '#78350F';
+        el.textContent = '⚠️ GPS refusé — localisation non incluse';
+        const spinner = document.querySelector('#gps-status .spinner');
+        if (spinner) { spinner.outerHTML = '<i class="ti ti-map-pin-off" style="font-size:14px;color:#B45309;flex-shrink:0"></i>'; }
+      }
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+
+/* ================================================================
+   ALERTES — MODAL
+   ================================================================ */
+function openAlertModal() {
+  const modal = document.getElementById('alert-modal');
+  modal.style.display = 'flex';
+  document.getElementById('alert-submit-result').style.display = 'none';
+  document.getElementById('alert-msg').value = '';
+  document.getElementById('alert-submit-btn').disabled = false;
+  // Reset GPS status
+  const gpsEl = document.getElementById('gps-label');
+  const gpsSt = document.getElementById('gps-status');
+  gpsSt.style.background = 'var(--bg2)';
+  gpsSt.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;flex-shrink:0"></div><span id="gps-label">Détection GPS en cours…</span>';
+  startGPS();
+}
+
+function closeAlertModal() {
+  document.getElementById('alert-modal').style.display = 'none';
+}
+
+async function submitAlert() {
+  const msg = document.getElementById('alert-msg').value.trim();
+  if (!msg) {
+    document.getElementById('alert-msg').focus();
+    return;
+  }
+
+  const btn    = document.getElementById('alert-submit-btn');
+  const result = document.getElementById('alert-submit-result');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff"></div>Analyse en cours…';
+
+  const body = { message: msg };
+  if (_gpsCoords) {
+    body.lat      = _gpsCoords.lat;
+    body.lon      = _gpsCoords.lon;
+    body.accuracy = _gpsCoords.accuracy;
+  }
+
+  try {
+    const resp = await fetch('/api/alert/submit', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const a    = data.alert;
+    const cfg  = DANGER_CFG[a.danger] || DANGER_CFG.modere;
+
+    result.style.display    = 'block';
+    result.style.background = cfg.bg;
+    result.innerHTML = `
+      <div style="font-weight:600;color:${cfg.color};margin-bottom:6px">${cfg.dot} ${cfg.label} — ${a.type}</div>
+      <div style="color:var(--txt);margin-bottom:4px">${a.resume}</div>
+      ${a.conseil ? `<div style="color:var(--txt2);font-size:12px;margin-top:4px">💡 ${a.conseil}</div>` : ''}
+      <div style="color:var(--txt2);font-size:11px;margin-top:8px">Signalement diffusé à tous les utilisateurs connectés ✅</div>`;
+
+    btn.innerHTML = '<i class="ti ti-check"></i>Envoyé';
+    setTimeout(closeAlertModal, 3000);
+
+    // Remettre le nav à sa couleur normale
+    const navBtn = document.querySelector('[onclick*="alertes"]');
+    if (navBtn) navBtn.style.color = '';
+
+  } catch(e) {
+    result.style.display    = 'block';
+    result.style.background = 'var(--red-xl)';
+    result.innerHTML = `<div style="color:var(--red-l);font-weight:600">⚠️ Erreur d'envoi</div><div style="color:var(--txt2);font-size:12px;margin-top:4px">${e.message}</div>`;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-send"></i>Réessayer';
+  }
+}
+
+/* ================================================================
+   INITIALISATION
+   ================================================================ */
+(function init() {
+  onCultureChange();
+  const today = new Date();
+  document.getElementById('semis').value = `${today.getFullYear()}-06-01`;
+  loadMeteoEstimation();
+  document.getElementById('topDot').style.background = '#4ADE80';
+  renderIntrants();
+  connectAlertsWS();
+})();
+</script>
+</body>
+</html>
