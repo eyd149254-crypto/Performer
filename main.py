@@ -7,6 +7,7 @@ Routes :
   POST /api/gemini          → proxy hybride :
                               has_image=false → Groq llama-3.3-70b  (chat/intrants)
                               has_image=true  → Gemini gemini-2.5-pro (diagnostic image)
+  POST /api/hf              → proxy HuggingFace ResNet50 (évite CORS navigateur)
   POST /api/alert/submit    → Groq classifie → broadcast WS
   GET  /api/alerts          → liste alertes récentes
   WS   /ws/alerts           → push temps réel
@@ -14,6 +15,7 @@ Routes :
 Variables Render :
   GROQ_API_KEY              → gsk_...
   GEMINI_API_KEY            → AIza...
+  HF_TOKEN                  → hf_... (optionnel — améliore priorité & rate-limit HF)
 ─────────────────────────────────────────────────────────────────
 """
 
@@ -22,7 +24,7 @@ from typing import Any, Optional
 from collections import deque
 
 import httpx
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,15 +35,18 @@ from pydantic import BaseModel
 # ══════════════════════════════════════════════════════════════════
 GROQ_API_KEY   = os.environ.get("GROQ_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+HF_TOKEN       = os.environ.get("HF_TOKEN", "")          # optionnel
 
 GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_BASE  = "https://generativelanguage.googleapis.com/v1beta/models"
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/mesabo/agri-plant-disease-resnet50"
 
 MODEL_CHAT   = "llama-3.3-70b-versatile"   # Groq  — chat + alertes + intrants
 MODEL_VISION = "gemini-2.5-pro"             # Gemini — diagnostic image
 
-print("✅ Groq OK"   if GROQ_API_KEY   else "⚠️  GROQ_API_KEY manquante")
-print("✅ Gemini OK" if GEMINI_API_KEY else "⚠️  GEMINI_API_KEY manquante")
+print("✅ Groq OK"      if GROQ_API_KEY   else "⚠️  GROQ_API_KEY manquante")
+print("✅ Gemini OK"    if GEMINI_API_KEY else "⚠️  GEMINI_API_KEY manquante")
+print("✅ HF Token OK"  if HF_TOKEN       else "ℹ️  HF_TOKEN non défini (modèle public OK)")
 
 # ══════════════════════════════════════════════════════════════════
 #  APP
@@ -94,7 +99,6 @@ def to_groq_messages(messages: list[Any], system: Optional[str]) -> list[dict]:
         if isinstance(content, str):
             result.append({"role": role, "content": content})
         elif isinstance(content, list):
-            # Extraire uniquement le texte (Groq ne gère pas les images)
             text = " ".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
             if text:
                 result.append({"role": role, "content": text})
@@ -238,6 +242,50 @@ async def hybrid_proxy(req: ApiRequest):
             return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ══════════════════════════════════════════════════════════════════
+#  PROXY HUGGINGFACE — /api/hf
+#  Résout les erreurs CORS quand le navigateur appelle HF directement.
+#  Le backend fait l'appel server-to-server, sans restriction CORS.
+#  HF_TOKEN (optionnel) : améliore la priorité et évite le rate-limiting.
+# ══════════════════════════════════════════════════════════════════
+@app.post("/api/hf")
+async def hf_proxy(request: Request):
+    """Proxy HuggingFace Inference API ResNet50 → pas de CORS, token sécurisé."""
+    body = await request.body()
+
+    if not body:
+        return JSONResponse(status_code=400, content={"error": "Corps de requête vide — image manquante."})
+
+    headers = {"Content-Type": "image/jpeg"}
+    if HF_TOKEN:
+        headers["Authorization"] = f"Bearer {HF_TOKEN}"
+
+    print(f"🤖 /api/hf → HuggingFace ResNet50  size={len(body)} bytes  token={'yes' if HF_TOKEN else 'no'}")
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(HF_MODEL_URL, content=body, headers=headers)
+
+        # Relayer le statut et le JSON tel quel (503 = modèle en chargement, géré côté client)
+        try:
+            payload = resp.json()
+        except Exception:
+            payload = {"error": f"Réponse non-JSON de HuggingFace (HTTP {resp.status_code})"}
+
+        if resp.status_code == 200:
+            print(f"✅ HF OK → {len(payload)} prédictions")
+        else:
+            print(f"⚠️  HF {resp.status_code}: {payload}")
+
+        return JSONResponse(status_code=resp.status_code, content=payload)
+
+    except httpx.TimeoutException:
+        print("❌ HF Timeout")
+        return JSONResponse(status_code=504, content={"error": "Timeout HuggingFace — réessayez dans quelques secondes."})
+    except Exception as e:
+        print(f"❌ HF Erreur: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ══════════════════════════════════════════════════════════════════
 #  ALERT SUBMIT → Groq classifie → broadcast
 # ══════════════════════════════════════════════════════════════════
 CLASSIFY_SYSTEM = """Tu es un système de classification d'alertes agricoles pour le Burkina Faso.
@@ -350,8 +398,10 @@ async def status():
     return {
         "groq":         bool(GROQ_API_KEY),
         "gemini":       bool(GEMINI_API_KEY),
+        "hf_token":     bool(HF_TOKEN),
         "model_chat":   MODEL_CHAT,
         "model_vision": MODEL_VISION,
+        "hf_model":     HF_MODEL_URL.split("/")[-1],
         "ws_clients":   len(active_ws),
         "alerts_count": len(alerts_db),
     }
