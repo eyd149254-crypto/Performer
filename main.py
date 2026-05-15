@@ -1,18 +1,19 @@
 """
-AgriMind AI — main.py (Groq API)
+AgriMind AI — main.py
 ─────────────────────────────────────────────────────────────────
 Routes :
   GET  /                    → index.html
   GET  /status              → healthcheck
-  POST /api/gemini          → proxy Groq (chatbot + diagnostic image + intrants)
-                              has_image=true  → llama-3.2-90b-vision-preview
-                              has_image=false → llama-3.3-70b-versatile
-  POST /api/alert/submit    → signalement + GPS → Groq classifie → broadcast WS
+  POST /api/gemini          → proxy hybride :
+                              has_image=false → Groq llama-3.3-70b  (chat/intrants)
+                              has_image=true  → Gemini gemini-2.5-pro (diagnostic image)
+  POST /api/alert/submit    → Groq classifie → broadcast WS
   GET  /api/alerts          → liste alertes récentes
   WS   /ws/alerts           → push temps réel
 
 Variables Render :
   GROQ_API_KEY              → gsk_...
+  GEMINI_API_KEY            → AIza...
 ─────────────────────────────────────────────────────────────────
 """
 
@@ -30,13 +31,17 @@ from pydantic import BaseModel
 # ══════════════════════════════════════════════════════════════════
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY   = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
 GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
+GEMINI_BASE  = "https://generativelanguage.googleapis.com/v1beta/models"
 
-MODEL_CHAT   = "llama-3.3-70b-versatile"        # chat + alertes + intrants
-MODEL_VISION = "llama-3.2-90b-vision-preview"   # diagnostic image
+MODEL_CHAT   = "llama-3.3-70b-versatile"   # Groq  — chat + alertes + intrants
+MODEL_VISION = "gemini-2.5-pro"             # Gemini — diagnostic image
 
-print("✅ Groq API key OK" if GROQ_API_KEY else "⚠️  GROQ_API_KEY manquante")
+print("✅ Groq OK"   if GROQ_API_KEY   else "⚠️  GROQ_API_KEY manquante")
+print("✅ Gemini OK" if GEMINI_API_KEY else "⚠️  GEMINI_API_KEY manquante")
 
 # ══════════════════════════════════════════════════════════════════
 #  APP
@@ -51,11 +56,9 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-# ── état en mémoire ───────────────────────────────────────────────
 active_ws:  list[WebSocket] = []
 alerts_db:  deque           = deque(maxlen=200)
 
-# ── statique ──────────────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
@@ -65,7 +68,7 @@ async def root():
 # ══════════════════════════════════════════════════════════════════
 #  MODÈLES PYDANTIC
 # ══════════════════════════════════════════════════════════════════
-class GroqRequest(BaseModel):
+class ApiRequest(BaseModel):
     messages:   list[Any]
     system:     Optional[str] = None
     has_image:  bool          = False
@@ -78,91 +81,100 @@ class AlertSubmit(BaseModel):
     accuracy: Optional[float] = None
 
 # ══════════════════════════════════════════════════════════════════
-#  HELPERS
+#  GROQ — chat + alertes (texte uniquement)
 # ══════════════════════════════════════════════════════════════════
-def anthropic_to_groq_messages(messages: list[Any],
-                                system: Optional[str]) -> list[dict]:
-    """
-    Convertit le format Anthropic [{role, content}] vers OpenAI/Groq.
-    Gère texte et images (base64).
-    Injecte le system prompt en tête si fourni.
-    """
+def to_groq_messages(messages: list[Any], system: Optional[str]) -> list[dict]:
+    """Convertit format Anthropic → OpenAI/Groq (texte seulement)."""
     result = []
-
     if system:
         result.append({"role": "system", "content": system})
-
     for m in messages:
         role    = m.get("role", "user")
         content = m.get("content", "")
-
         if isinstance(content, str):
             result.append({"role": role, "content": content})
-
         elif isinstance(content, list):
-            parts = []
-            for block in content:
-                if not isinstance(block, dict):
-                    continue
-                btype = block.get("type", "")
-
-                if btype == "text":
-                    parts.append({"type": "text", "text": block.get("text", "")})
-
-                elif btype == "image":
-                    src = block.get("source", {})
-                    if src.get("type") == "base64":
-                        mime = src.get("media_type", "image/jpeg")
-                        data = src.get("data", "")
-                        parts.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{mime};base64,{data}"
-                            }
-                        })
-
-            if parts:
-                result.append({"role": role, "content": parts})
-
+            # Extraire uniquement le texte (Groq ne gère pas les images)
+            text = " ".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+            if text:
+                result.append({"role": role, "content": text})
     return result
 
-
-async def call_groq(model: str, messages: list[dict],
-                    max_tokens: int = 1000,
-                    timeout: float = 60.0) -> tuple[int, dict]:
-    """
-    Appelle Groq et retourne (status, body normalisé).
-    body normalisé : { "content": [{"type":"text","text":"..."}] }
-    """
+async def call_groq(messages: list[dict], max_tokens: int = 1000, timeout: float = 60.0) -> tuple[int, dict]:
     payload = {
-        "model":      model,
-        "messages":   messages,
-        "max_tokens": max_tokens,
+        "model":       MODEL_CHAT,
+        "messages":    messages,
+        "max_tokens":  max_tokens,
         "temperature": 0.4,
     }
-
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(
             GROQ_URL,
-            headers={
-                "Authorization": f"Bearer {GROQ_API_KEY}",
-                "Content-Type":  "application/json",
-            },
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
             json=payload,
         )
+    raw = resp.json()
+    if resp.status_code == 200:
+        text = raw.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return 200, {"content": [{"type": "text", "text": text}]}
+    return resp.status_code, raw
+
+# ══════════════════════════════════════════════════════════════════
+#  GEMINI — diagnostic image (vision)
+# ══════════════════════════════════════════════════════════════════
+def to_gemini_contents(messages: list[Any]) -> list[dict]:
+    """Convertit format Anthropic → Gemini (texte + images base64)."""
+    contents = []
+    for m in messages:
+        role    = "user" if m.get("role") == "user" else "model"
+        content = m.get("content", "")
+        parts   = []
+        if isinstance(content, str):
+            parts.append({"text": content})
+        elif isinstance(content, list):
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "text":
+                    parts.append({"text": block.get("text", "")})
+                elif block.get("type") == "image":
+                    src = block.get("source", {})
+                    if src.get("type") == "base64":
+                        parts.append({
+                            "inline_data": {
+                                "mime_type": src.get("media_type", "image/jpeg"),
+                                "data":      src.get("data", ""),
+                            }
+                        })
+        if parts:
+            contents.append({"role": role, "parts": parts})
+    return contents
+
+async def call_gemini(contents: list[dict], system: Optional[str] = None,
+                      max_tokens: int = 1000, timeout: float = 120.0) -> tuple[int, dict]:
+    url     = f"{GEMINI_BASE}/{MODEL_VISION}:generateContent?key={GEMINI_API_KEY}"
+    payload: dict[str, Any] = {
+        "contents": contents,
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.4},
+    }
+    if system:
+        payload["systemInstruction"] = {"parts": [{"text": system}]}
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
 
     raw = resp.json()
-
     if resp.status_code == 200:
         try:
-            text = raw["choices"][0]["message"]["content"]
+            text = raw["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError):
             text = ""
         return 200, {"content": [{"type": "text", "text": text}]}
-    else:
-        return resp.status_code, raw
+    return resp.status_code, raw
 
-
+# ══════════════════════════════════════════════════════════════════
+#  BROADCAST WS
+# ══════════════════════════════════════════════════════════════════
 async def broadcast(data: dict):
     dead = []
     for ws in active_ws:
@@ -174,40 +186,59 @@ async def broadcast(data: dict):
         active_ws.remove(ws)
 
 # ══════════════════════════════════════════════════════════════════
-#  PROXY GROQ — chatbot + diagnostic image + intrants
-#  Route gardée /api/gemini pour ne pas changer le frontend
+#  PROXY HYBRIDE — /api/gemini
+#  has_image=false → Groq (rapide, gratuit, texte)
+#  has_image=true  → Gemini Vision (diagnostic image)
 # ══════════════════════════════════════════════════════════════════
 @app.post("/api/gemini")
-async def groq_proxy(req: GroqRequest):
-    if not GROQ_API_KEY:
-        return JSONResponse(status_code=500,
-                            content={"error": "GROQ_API_KEY non configurée sur Render."})
+async def hybrid_proxy(req: ApiRequest):
 
-    model    = MODEL_VISION if req.has_image else MODEL_CHAT
-    messages = anthropic_to_groq_messages(req.messages, req.system)
+    if req.has_image:
+        # ── GEMINI VISION ──────────────────────────────────────────
+        if not GEMINI_API_KEY:
+            return JSONResponse(status_code=500,
+                                content={"error": "GEMINI_API_KEY non configurée sur Render."})
 
-    print(f"🤖 /api/gemini→Groq  model={model}  msgs={len(messages)}  img={'oui' if req.has_image else 'non'}")
+        contents = to_gemini_contents(req.messages)
+        print(f"🔬 /api/gemini → Gemini Vision  msgs={len(req.messages)}")
 
-    try:
-        timeout = 90.0 if req.has_image else 60.0
-        status, body = await call_groq(model, messages, req.max_tokens, timeout)
+        try:
+            status, body = await call_gemini(contents, req.system, req.max_tokens)
+            if status == 200:
+                preview = body["content"][0]["text"][:100].replace("\n", " ")
+                print(f"✅ Gemini OK → «{preview}…»")
+            else:
+                print(f"❌ Gemini {status}: {body}")
+            return JSONResponse(status_code=status, content=body)
+        except httpx.TimeoutException:
+            return JSONResponse(status_code=504, content={"error": "Timeout Gemini Vision — réessayez."})
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"error": str(e)})
 
-        if status == 200:
-            preview = body["content"][0]["text"][:100].replace("\n", " ")
-            print(f"✅ Groq OK ({model}) → «{preview}…»")
-        else:
-            print(f"❌ Groq {status}: {body}")
+    else:
+        # ── GROQ CHAT ──────────────────────────────────────────────
+        if not GROQ_API_KEY:
+            return JSONResponse(status_code=500,
+                                content={"error": "GROQ_API_KEY non configurée sur Render."})
 
-        return JSONResponse(status_code=status, content=body)
+        messages = to_groq_messages(req.messages, req.system)
+        print(f"🤖 /api/gemini → Groq Chat  msgs={len(messages)}")
 
-    except httpx.TimeoutException:
-        return JSONResponse(status_code=504,
-                            content={"error": "Timeout Groq — réessayez."})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        try:
+            status, body = await call_groq(messages, req.max_tokens)
+            if status == 200:
+                preview = body["content"][0]["text"][:100].replace("\n", " ")
+                print(f"✅ Groq OK → «{preview}…»")
+            else:
+                print(f"❌ Groq {status}: {body}")
+            return JSONResponse(status_code=status, content=body)
+        except httpx.TimeoutException:
+            return JSONResponse(status_code=504, content={"error": "Timeout Groq — réessayez."})
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ══════════════════════════════════════════════════════════════════
-#  ALERT SUBMIT
+#  ALERT SUBMIT → Groq classifie → broadcast
 # ══════════════════════════════════════════════════════════════════
 CLASSIFY_SYSTEM = """Tu es un système de classification d'alertes agricoles pour le Burkina Faso.
 Un agriculteur envoie un signalement en texte libre. Extrais et structure l'information.
@@ -232,8 +263,7 @@ Règles danger :
 @app.post("/api/alert/submit")
 async def alert_submit(payload: AlertSubmit):
     if not GROQ_API_KEY:
-        return JSONResponse(status_code=500,
-                            content={"error": "GROQ_API_KEY non configurée."})
+        return JSONResponse(status_code=500, content={"error": "GROQ_API_KEY non configurée."})
 
     msg = payload.message.strip()
     if not msg:
@@ -247,20 +277,18 @@ async def alert_submit(payload: AlertSubmit):
 
     messages = [
         {"role": "system", "content": CLASSIFY_SYSTEM},
-        {"role": "user",   "content": f"Signalement:{gps_ctx}\n\n{msg}"}
+        {"role": "user",   "content": f"Signalement:{gps_ctx}\n\n{msg}"},
     ]
 
-    print(f"📩 ALERT SUBMIT: «{msg[:80]}»  GPS=({payload.lat},{payload.lon})")
+    print(f"📩 ALERT: «{msg[:80]}»  GPS=({payload.lat},{payload.lon})")
 
     try:
-        status, body = await call_groq(MODEL_CHAT, messages, 300, 30.0)
+        status, body = await call_groq(messages, max_tokens=300, timeout=30.0)
         if status != 200:
             raise Exception(f"Groq error {status}: {body}")
-
-        raw_text = body["content"][0]["text"]
-        raw_text = raw_text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+        raw_text = body["content"][0]["text"].strip()
+        raw_text = raw_text.lstrip("```json").lstrip("```").rstrip("```").strip()
         classification = json.loads(raw_text)
-
     except Exception as e:
         print(f"⚠️  Classification failed: {e} — fallback")
         classification = {
@@ -321,6 +349,7 @@ async def ws_alerts(websocket: WebSocket):
 async def status():
     return {
         "groq":         bool(GROQ_API_KEY),
+        "gemini":       bool(GEMINI_API_KEY),
         "model_chat":   MODEL_CHAT,
         "model_vision": MODEL_VISION,
         "ws_clients":   len(active_ws),
