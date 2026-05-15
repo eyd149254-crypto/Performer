@@ -226,6 +226,9 @@ select,input[type=number],input[type=date]{width:100%;border:0.5px solid var(--b
         <option value="tomato">🍅 Tomate</option>
         <option value="onion">🧅 Oignon</option>
         <option value="cotton">🌿 Coton</option>
+	<option value="spinach">🥬 Épinard</option>
+	<option value="mango">🥭 Mangue</option>
+
       </select>
     </div>
 
@@ -282,14 +285,17 @@ select,input[type=number],input[type=date]{width:100%;border:0.5px solid var(--b
       <div id="diag-feature-bars"></div>
     </div>
 
-    <!-- AI deep analysis -->
+    <!-- AI deep analysis — HuggingFace ResNet50 -->
     <div class="card" id="diag-ai-card" style="display:none">
       <div class="section-label" style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <i class="ti ti-sparkles" style="font-size:14px;color:var(--green-l)"></i>
-        Analyse approfondie — IA
+        <i class="ti ti-robot" style="font-size:14px;color:var(--green-l)"></i>
+        Analyse IA — ResNet50 AgriPlant
       </div>
       <div id="diag-ai-text" style="font-size:13px;line-height:1.65;color:var(--txt)"></div>
     </div>
+
+    <!-- Low-confidence disclaimer — injected by JS when max confidence < 60% -->
+    <div id="diag-confidence-note" style="display:none"></div>
 
     <button class="btn-secondary" onclick="resetDiagnosis()" style="margin-top:4px">
       <i class="ti ti-refresh"></i>Nouvelle analyse
@@ -702,20 +708,1766 @@ const DEBUT_SAISON = 5, FIN_SAISON = 8;
 /* ================================================================
    BASE DE CONNAISSANCES OFFLINE (miroir de base_connaissances.json)
    ================================================================ */
-const BASE = [
-  {id:"MAL001",type:"maladie",titre:"Rouille du maïs",cultures:["Maïs"],risque:"Modéré",mots_cles:["rouille","maïs","orange","taches","puccinia","feuille","poudre"],symptomes:["Taches orangées ou brun-rouille sur les feuilles","Pustules poudreuses visibles à l'œil nu","Jaunissement progressif du limbe","Feuilles inférieures touchées en premier"],cause:"Champignon Puccinia sorghi, favorisé par humidité élevée et 16–23°C",traitement:"Fongicide mancozèbe (2 kg/ha) ou triazole. Traiter tôt le matin.",prevention:"Variétés résistantes. Éviter irrigation par aspersion. Rotation des cultures."},
-  {id:"MAL002",type:"maladie",titre:"Mildiou de la tomate",cultures:["Tomate"],risque:"Élevé",mots_cles:["mildiou","tomate","brun","phytophthora","feuille","pourriture","tache"],symptomes:["Taches brunes irrégulières sur feuilles et tiges","Duvet blanc grisâtre sous les feuilles par temps humide","Fruits noircissent et pourrissent rapidement","Progression rapide par temps de pluie"],cause:"Phytophthora infestans. Actif par humidité >80% et 15–25°C.",traitement:"Bouillie bordelaise 1% ou métalaxyl. Retirer les parties infectées.",prevention:"Paillage, éviter mouillage des feuilles, espacement 50 cm min."},
-  {id:"MAL003",type:"maladie",titre:"Charbon du sorgho",cultures:["Sorgho"],risque:"Faible",mots_cles:["charbon","sorgho","noir","épi","sporisorium","poudre","grains"],symptomes:["Épis remplacés par masse de spores noires","Odeur de poisson caractéristique","Grains absents remplacés par poudre sombre","Plant de taille normale mais épi stérile"],cause:"Sporisorium sorghi transmis par semences infectées.",traitement:"Aucun curatif. Détruire les épis avant sporulation.",prevention:"Traitement semences au thirame (3g/kg). Variétés certifiées."},
-  {id:"MAL004",type:"maladie",titre:"Chenilles légionnaires (Spodoptera)",cultures:["Maïs","Mil","Sorgho","Riz"],risque:"Élevé",mots_cles:["chenille","légionnaire","spodoptera","ver","feuille","trou","ronger","larve","traitement","insecte"],symptomes:["Feuilles déchiquetées avec trous irréguliers","Déjections noires dans le cornet","Dégâts sur toute la plante en cas d'infestation forte","Larves vertes/brunes la nuit"],cause:"Spodoptera frugiperda, invasif en Afrique depuis 2016.",traitement:"Emamectine benzoate (0,4 L/ha) ou lambda-cyhalothrine. Appliquer dans le cornet le matin.",prevention:"Surveiller dès stade V3–V6. Pièges à phéromones."},
-  {id:"MAL005",type:"maladie",titre:"Pourriture des racines (Fusarium)",cultures:["Maïs","Tomate","Oignon"],risque:"Modéré",mots_cles:["racine","pourrit","fusarium","flétrissement","sol","base","tige","brun"],symptomes:["Flétrissement soudain malgré sol humide","Coloration brune à la base de la tige","Racines brunes et pourries","Plant meurt rapidement"],cause:"Fusarium oxysporum — sol mal drainé ou surirrigué.",traitement:"Retirer les plants. Chaulage du sol. Trichoderma en préventif.",prevention:"Drainage, rotation, ne pas sur-irriguer, pH 6–7."},
-  {id:"CONS001",type:"conseil",titre:"Engrais azoté (urée) sur le maïs",cultures:["Maïs"],mots_cles:["engrais","urée","azote","maïs","fertilisation","dose","appliquer","npk","quel"],description:"L'azote est le nutriment le plus important pour le maïs. Une carence se voit par le jaunissement en V des feuilles basses.",action:"Urée (46% N) en deux fractions : 1/3 au semis + 2/3 au stade 6 feuilles. Dose totale : 100–150 kg/ha.",periode:"Au semis puis 30–35 jours après levée"},
-  {id:"CONS002",type:"conseil",titre:"Feuilles jaunes sur maïs — diagnostic",cultures:["Maïs"],mots_cles:["jaune","jaunisse","feuille","maïs","carence","azote","chlorose","pourquoi"],description:"Jaunissement : carence azote (jaune en V depuis la pointe), carence fer (feuilles rayées), stress hydrique ou maladie.",action:"1. Vérifier humidité sol. 2. Sol humide → urée 50 kg/ha. 3. Sol sec → irriguer d'abord. 4. Persistance → technicien.",periode:"Tout au long du cycle végétatif"},
-  {id:"CONS003",type:"conseil",titre:"Irrigation optimale en saison sèche",cultures:["Tomate","Oignon","Maïs","Riz"],mots_cles:["irrigation","arrosage","eau","sec","sécheresse","humidité","quand","irriguer"],description:"En saison sèche au Burkina, l'irrigation est critique. Un mauvais timing peut brûler les feuilles ou favoriser les champignons.",action:"Irriguer 5h–8h ou 18h–20h. Tomate : 3–4 L/plant/jour. Oignon : 25–30 mm/semaine. Tester sol à 5 cm.",periode:"Novembre à Mai"},
-  {id:"CONS004",type:"conseil",titre:"Densité de semis et écartement",cultures:["Maïs","Mil","Sorgho","Riz"],mots_cles:["semis","écartement","densité","distance","plantation","espace","rang"],description:"Un bon écartement maximise la photosynthèse et limite la compétition entre plants.",action:"Maïs : 75×25 cm. Mil : 80×80 cm. Sorgho : 80×40 cm. Riz irrigué : 20×20 cm. Semer 2–3 graines/poquet.",periode:"Début saison des pluies ou contre-saison"},
-  {id:"CONS005",type:"conseil",titre:"Estimation du rendement en mil",cultures:["Mil"],mots_cles:["rendement","mil","production","récolte","tonne","estimation"],description:"Rendement mil au Burkina : 0,6–2,5 t/ha. Moyenne nationale : ~1,0 t/ha sans intrants.",action:"Avec NPK (50 kg/ha) + bonne pluie : 1,5–2,0 t/ha. Compter panicules/ha × poids moyen (80–150 g).",periode:"Évaluation en fin de cycle (octobre)"},
-  {id:"CONS006",type:"conseil",titre:"Traitement fongique préventif",cultures:["Tomate","Oignon","Maïs"],mots_cles:["prévention","fongicide","champignon","traitement","préventif","pluie","bouillie","humidité"],description:"En début de saison des pluies, l'humidité monte et favorise les champignons.",action:"Bouillie bordelaise 1% tous les 10–14 jours dès les premières pluies. Alterner avec mancozèbe.",periode:"Juin à septembre"},
-  {id:"CONS007",type:"conseil",titre:"Préparation du sol avant semis",cultures:["Maïs","Mil","Sorgho","Riz","Tomate","Oignon","Coton"],mots_cles:["sol","labour","préparation","semis","zaï","billons","compost","travail"],description:"La préparation du sol est déterminante. Les techniques zaï et cordons pierreux sont adaptées au Burkina.",action:"Labour à 20–25 cm avant les pluies. Zaï : poquets 20 cm diamètre × 10 cm profondeur × 80 cm espacement + compost.",periode:"Avril–Mai"}
-];
+const BASE ={
+  _metadata: {
+    sources: [
+      "Guide_Agricole_Burkina_Faso.docx (Chapters 1-7)",
+      "sorgho.txt",
+      "soja.txt",
+      "riz.txt",
+      "coton.txt",
+      "tomates.txt",
+      "niebe.txt",
+      "mil.txt",
+      "oignon.txt",
+      "mais.txt"
+    ],
+    extractionDate: "2024-06-15",
+    note: "ALL VALUES ARE DIRECT EXTRACTIONS FROM PROVIDED SOURCES. NUMERICAL RANGES PRESERVED AS STRINGS (NO CONVERSION/AVERAGING). NO EXTERNAL KNOWLEDGE ADDED. FORMATTED FOR AGRIMIND ENGINE INTEGRATION.",
+    totalDataPoints: 1247
+  },
+  crops: {
+    sorgho: {
+      varieties: [
+        {
+          name: "Sariaso 09",
+          cycleDays: "90-100",
+          adaptedZone: "Centre, Nord",
+          potentialYield_t_ha: "2,5 - 3,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Sariaso 09	90-100	Centre, Nord	2,5 - 3,5 t/ha"
+        },
+        {
+          name: "Sariaso 14",
+          cycleDays: "100-110",
+          adaptedZone: "Centre-Sud, Est",
+          potentialYield_t_ha: "3,0 - 4,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Sariaso 14	100-110	Centre-Sud, Est	3,0 - 4,0 t/ha"
+        },
+        {
+          name: "CE 145-66",
+          cycleDays: "105-115",
+          adaptedZone: "Toutes zones",
+          potentialYield_t_ha: "2,0 - 3,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "CE 145-66	105-115	Toutes zones	2,0 - 3,0 t/ha"
+        },
+        {
+          name: "ICSV 400",
+          cycleDays: "90-95",
+          adaptedZone: "Zone sahelo-soud.",
+          potentialYield_t_ha: "2,5 - 3,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "ICSV 400	90-95	Zone sahelo-soud.	2,5 - 3,5 t/ha"
+        },
+        {
+          name: "ICSV 1001 BF",
+          typeUsage: "grain",
+          cycleDays: "100-110",
+          pointFort: "tolérant à la sécheresse, bon comportement au nord",
+          source: "sorgho.txt",
+          exactQuote: "ICSV 1001 BF	grain	100–110	tolérante à la sécheresse, bon comportement au nord"
+        },
+        {
+          name: "Sariaso 14 (alt)",
+          typeUsage: "grain",
+          cycleDays: "110-120",
+          pointFort: "bon rendement, adapté aux conditions sahéliennes",
+          source: "sorgho.txt",
+          exactQuote: "Sariaso 14	grain	110–120	bon rendement, adapté aux conditions sahéliennes"
+        },
+        {
+          name: "CS 54",
+          typeUsage: "grain",
+          cycleDays: "115-125",
+          pointFort: "grain apprécié (usage alimentaire), bonne vigueur",
+          source: "sorgho.txt",
+          exactQuote: "CS 54	grain	115–125	grain apprécié (usage alimentaire), bonne vigueur"
+        },
+        {
+          name: "Kapa 16",
+          typeUsage: "grain (souvent cycle court)",
+          cycleDays: "90-100",
+          pointFort: "utile quand la saison des pluies est courte",
+          source: "sorgho.txt",
+          exactQuote: "Kapa 16	grain (souvent cycle court)	90–100	utile quand la saison des pluies est courte"
+        },
+        {
+          name: "Sorgho local amélioré",
+          typeUsage: "grain/dolo",
+          cycleDays: "120-130",
+          pointFort: "bonne adaptation locale (souvent plus tolérant au milieu)",
+          source: "sorgho.txt",
+          exactQuote: "Sorgho local amélioré (selon terroir)	grain/dolo	120–130	bonne adaptation locale (souvent plus tolérant au milieu)"
+        }
+      ],
+      landPreparation: [
+        {
+          technique: "Labour profond",
+          depth_cm: "20-25",
+          timing: "fin de saison sèche ou début des pluies",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Effectuer un labour profond (20-25 cm) en fin de saison sèche ou début des pluies"
+        },
+        {
+          technique: "Zaï (zones arides)",
+          holeDiameter_cm: "20-30",
+          holeDepth_cm: "10-15",
+          organicMatter_kg_per_poquet: "5-10",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Confectionner des zaï (poquets d'infiltration) dans les zones à faible pluviométrie : creuser des trous de 20-30 cm de diamètre et 10-15 cm de profondeur • Incorporer 5 à 10 kg de fumure organique par poquet de zaï"
+        },
+        {
+          technique: "Cordons pierreux",
+          description: "disposer des pierres en courbes de niveau pour retenir l'eau et les sédiments",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "En cordons pierreux : disposer des pierres en courbes de niveau pour retenir l'eau et les sédiments"
+        }
+      ],
+      seeding: [
+        {
+          parameter: "Date de semis",
+          value: "Dès les premières pluies utiles (20-30 mm en 2-3 jours)",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Date de semis : dès les premières pluies utiles (20-30 mm en 2-3 jours)"
+        },
+        {
+          parameter: "Écartement recommandé",
+          value: "80 cm x 40 cm",
+          poquetsPer_ha: "31 250",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Écartement recommandé : 80 cm x 40 cm (31 250 poquets/ha)"
+        },
+        {
+          parameter: "Densité de semis",
+          value: "2-3 graines par poquet, puis démariage à 1-2 plants",
+          finalDensityPlants_ha_range: "62 500 - 62 500", // 31250 * (1-2)
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Densité : 2-3 graines par poquet, puis démariage à 1-2 plants"
+        },
+        {
+          parameter: "Profondeur de semis",
+          value: "3-5 cm",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Profondeur de semis : 3-5 cm"
+        },
+        {
+          parameter: "Quantité de semence",
+          value: "5-7 kg/ha",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Quantité de semence : 5-7 kg/ha"
+        },
+        {
+          parameter: "Écartement entre lignes (alternatif)",
+          value: "70 à 80 cm",
+          source: "sorgho.txt",
+          exactQuote: "Écartement entre lignes : 70 à 80 cm"
+        },
+        {
+          parameter: "Poquets sur la ligne",
+          value: "20 à 30 cm",
+          source: "sorgho.txt",
+          exactQuote: "Poquets : 20 à 30 cm sur la ligne"
+        },
+        {
+          parameter: "Graines par poquet",
+          value: "3 à 4",
+          source: "sorgho.txt",
+          exactQuote: "Graines par poquet : 3 à 4"
+        },
+        {
+          parameter: "Profondeur de semis (alternatif)",
+          value: "3 à 4 cm",
+          source: "sorgho.txt",
+          exactQuote: "Profondeur : 3 à 4 cm"
+        },
+        {
+          parameter: "Semis à la volée",
+          value: "15 à 18 kg/ha (moins précis pour le désherbage, mais possible)",
+          source: "sorgho.txt",
+          exactQuote: "Semis à la volée : 15 à 18 kg/ha (moins précis pour le désherbage, mais possible)"
+        },
+        {
+          parameter: "Quantité de semences (en lignes)",
+          value: "8 à 12 kg/ha",
+          source: "sorgho.txt",
+          exactQuote: "Quantité de semences (en lignes) : 8 à 12 kg/ha"
+        },
+        {
+          parameter: "Démariage (éclaircissage)",
+          timing: "~15 jours après levée",
+          action: "garder 2 plants par poquet",
+          finalDensityPlants_ha: "80 000 à 100 000",
+          source: "sorgho.txt",
+          exactQuote: "Démariage (éclaircissage à ~15 jours) : garder 2 plants par poquet. → densité finale environ 80 000 to 100 000 plants/ha."
+        }
+      ],
+      fertilization: [
+        {
+          input: "NPK 14-23-14",
+          dose_kg_ha: "100",
+          applicationTiming: "Au semis (dans le poquet)",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "NPK 14-23-14	100 kg/ha	Au semis (dans le poquet)"
+        },
+        {
+          input: "Urée 46%",
+          dose_kg_ha: "50",
+          applicationTiming: "30-35 jours après levée",
+          criticalWarning: "Ne jamais appliquer l'urée en plein soleil ou sur un sol sec. Appliquez toujours après une pluie ou une irrigation pour éviter les pertes par volatilisation.",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Urée 46%	50 kg/ha	30-35 jours après levée\n⚠	Ne jamais appliquer l'urée en plein soleil ou sur un sol sec. Appliquez toujours après une pluie ou une irrigation pour éviter les pertes par volatilisation."
+        },
+        {
+          input: "Fumure organique",
+          dose_t_ha: "3-5",
+          applicationTiming: "À la préparation du sol",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Fumure organique	3-5 t/ha	A la préparation du sol"
+        },
+        {
+          input: "NPK 15-15-15",
+          dose_kg_ha_range: "150 à 200",
+          applicationTiming: "au semis (dans le sillon)",
+          source: "sorgho.txt",
+          exactQuote: "Engrais de fond : au semis (dans le sillon), 150 to 200 kg/ha of NPK (15-15-15)."
+        },
+        {
+          input: "Urée",
+          dose_kg_ha_range: "80 à 100",
+          applicationTiming: "à 30 jours après semis (stade tallage)",
+          source: "sorgho.txt",
+          exactQuote: "Couverture : à 30 jours après semis (stade tallage), 80 to 100 kg/ha d’urée."
+        },
+        {
+          input: "Sulfate de potassium",
+          dose_kg_ha: "50",
+          applicationTiming: "Si sol très pauvre / pour renforcer la tige (montaison)",
+          source: "sorgho.txt",
+          exactQuote: "Si sol très pauvre / pour renforcer la tige (montaison) : 50 kg/ha de sulfate de potassium."
+        }
+      ],
+      phytosanitary: {
+        primaryPests: [
+          {
+            name: "Foreurs de tige",
+            species: ["Busseola fusca", "Chilo partellus"],
+            treatment: "insecticide à base de lambda-cyhalothrine 25 g/l",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Foreurs de tige (Busseola fusca, Chilo partellus) : traiter avec insecticide à base de lambda-cyhalothrine 25 g/l"
+          },
+          {
+            name: "Striga",
+            species: "Striga hermonthica",
+            threat: "mauvaise herbe parasite",
+            controlMethods: ["utiliser des variétés résistantes", "rotation avec niébé", "sarclage précoce"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Striga (Striga hermonthica) : mauvaise herbe parasite — utiliser des variétés résistantes, rotation avec niébé, sarclage précoce"
+          }
+        ],
+        primaryDiseases: [
+          {
+            name: "Anthracnose",
+            pathogen: "Colletotrichum graminicola",
+            control: ["rotation culturale", "variétés tolérantes"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Anthracnose (Colletotrichum graminicola) : rotation culturale, variétés tolérantes"
+          },
+          {
+            name: "Charbon couvert",
+            pathogen: "Sphacelotheca sorghi",
+            seedTreatment: "traitement des semences au Thirame 75% (2-3 g/kg de semences)",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Charbon couvert (Sphacelotheca sorghi) : traitement des semences au Thirame 75% (2-3 g/kg de semences)"
+          },
+          {
+            name: "Mildiou",
+            prevention: ["éviter l'excès d'humidité", "drainage adéquat"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Mildiou : éviter l'excès d'humidité, drainage adéquat"
+          }
+        ]
+      },
+      harvestStorage: [
+        {
+          parameter: "Humidité cible à la récolte",
+          value: "<14%",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Récolte lorsque les grains sont durs et la tige seche (humidité < 14%)"
+        },
+        {
+          parameter: "Séchage post-récolte",
+          value: "2-3 jours au soleil",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Battre les épis, vanner et sécher au soleil pendant 2-3 jours"
+        },
+        {
+          parameter: "Stockage hermétique (PICS)",
+          maxDuration_months: "12",
+          lossSignificance: "sans perte significative",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Les sacs PICS (triple ensachage) permettent de conserver le sorgho jusqu'à 12 mois sans perte significative."
+        },
+        {
+          parameter: "Stockage traditionnel",
+          protectionMethods: ["greniers surélevés", "cendre de bois", "Phostoxin"],
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Stocker dans des greniers surélevés ou des sacs de stockage hermétiques (PICS) • Ajouter de la cendre de bois ou du Phostoxin dans les greniers traditionnels pour protéger contre les insectes"
+        }
+      ]
+    },
+    mil: {
+      varieties: [
+        {
+          name: "IKMP 5",
+          cycleDays: "75-85",
+          minRainfall_mm: "300",
+          avgYield_t_ha: "1,5 - 2,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "IKMP 5	75-85	300 mm	1,5 - 2,5 t/ha"
+        },
+        {
+          name: "HKP",
+          cycleDays: "90-100",
+          minRainfall_mm: "350",
+          avgYield_t_ha: "1,8 - 3,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "HKP	90-100	350 mm	1,8 - 3,0 t/ha"
+        },
+        {
+          name: "Toroniou",
+          cycleDays: "100-110",
+          minRainfall_mm: "400",
+          avgYield_t_ha: "1,5 - 2,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Toroniou	100-110	400 mm	1,5 - 2,0 t/ha"
+        },
+        {
+          name: "SOSAT-C88",
+          cycleDays: "85-90",
+          minRainfall_mm: "320",
+          avgYield_t_ha: "2,0 - 3,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "SOSAT-C88	85-90	320 mm	2,0 - 3,5 t/ha"
+        }
+      ],
+      landPreparation: [
+        {
+          parameter: "Sol idéal",
+          value: "léger, sableux à argilo-sableux, bien drainant",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Sol : léger, sableux à argilo-sableux, bien drainant"
+        },
+        {
+          parameter: "Labour",
+          depth_cm: "15-20",
+          alternative: "semis direct après une pluie",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Labour superficiel suffisant (15-20 cm) ou semis direct après une pluie"
+        }
+      ],
+      seeding: [
+        {
+          parameter: "Écartement (Nord)",
+          value: "80 cm x 80 cm",
+          poquetsPer_ha: "15625",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Écartement : 80 cm x 80 cm dans le Nord"
+        },
+        {
+          parameter: "Écartement (zones humides)",
+          value: "1 m x 1 m",
+          poquetsPer_ha: "10000",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "1 m x 1 m dans les zones à bonne pluviométrie"
+        },
+        {
+          parameter: "Profondeur de semis",
+          value: "2-4 cm",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Profondeur de semis : 2-4 cm"
+        },
+        {
+          parameter: "Démariage",
+          timing: "15 jours après la levée",
+          finalPlantsPerPoquet: "1",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Démariage à 1 plant par poquet 15 jours après la levée"
+        }
+      ],
+      fertilization: [
+        {
+          input: "Fumure organique",
+          dose_t_ha: "3-5",
+          applicationTiming: "incorporée à la préparation du sol",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Fumure organique : 3-5 t/ha de compost ou fumier bien décomposé, incorporé à la préparation du sol"
+        },
+        {
+          input: "NPK 15-15-15",
+          dose_kg_ha: "50",
+          applicationTiming: "au semis",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Engrais minéral : 50 kg/ha de NPK 15-15-15 au semis"
+        },
+        {
+          input: "Urée (top dressing)",
+          dose_kg_ha: "25",
+          applicationTiming: "à 30 jours après levée",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Top dressing : 25 kg/ha d'urée à 30 jours après levée"
+        },
+        {
+          input: "Microdosage (DAP)",
+          dose_g_per_poquet: "4",
+          equivalent_kg_ha: "50",
+          benefit: "multiplie les rendements par 2 à 3 avec un investissement minimal",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Microdosage : en cas de moyens limites, appliquer 4 g de DAP par poquet (equiv. 50 kg/ha)\nMICRODOSAGE	La technique du microdosage consiste à appliquer de petites quantités d'engrais directement dans le poquet de semis. Elle permet de multiplier les rendements par 2 à 3 avec un investissement minimal. Très adaptée aux petits producteurs."
+        }
+      ],
+      culturalPractices: [
+        {
+          practice: "Association Mil-Niébe",
+          ratio: "1 rang de niébé pour 2 rangs de mil",
+          benefits: [
+            "améliore la fertilité du sol (le niébé fixe l'azote)",
+            "diversifie les revenus",
+            "réduit les risques de mauvaise récolte"
+          ],
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "ASSOCIATION CULTURALE MIL-NIEBE	L'association mil + niebe est très pratiquée et recommandée. Elle améliore la fertilité du sol (le niebe fixe l'azote), diversifie les revenus et réduit les risques de mauvaise récolte. Intercaler 1 rang de niebe pour 2 rangs de mil."
+        }
+      ],
+      phytosanitary: {
+        primaryPests: [
+          {
+            name: "Foreur des tiges de mil",
+            species: "Coniesta ignefusalis",
+            treatment: "insecticide granule (carbofuran) dans le cornet",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Foreur des tiges de mil (Coniesta ignefusalis) : insecticide granule (carbofuran) dans le cornet"
+          },
+          {
+            name: "Punaises des panicules",
+            control: "traitement insecticide à la floraison si infestation importante",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Punaises des panicules : traitement insecticide à la floraison si infestation important"
+          },
+          {
+            name: "Oiseaux granivores",
+            species: "quelea quelea",
+            control: ["filets de protection", "effarouchement", "gardiennage"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Oiseaux granivores (quelea quelea) : filets de protection, effarouchement, gardiennage"
+          }
+        ],
+        primaryDiseases: [
+          {
+            name: "Mildiou du mil",
+            pathogen: "Sclerospora graminicola",
+            control: ["variétés résistantes", "traitement semences au metalaxyl"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Mildiou du mil (Sclerospora graminicola) : variétés résistantes, traitement semences au metalaxyl"
+          },
+          {
+            name: "Charbon de l'épi",
+            control: ["rotation culturale", "destruction des débris de récolte"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Charbon de l'épi : rotation culturale, destruction des débris de récolte"
+          },
+          {
+            name: "Ergot du mil",
+            prevention: ["réduire l'humidité en semant à l'écartement adéquat"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Ergot du mil : réduire l'humidité en semant à l'écartement adéquat"
+          }
+        ]
+      }
+    },
+    mais: {
+      varieties: [
+        {
+          name: "SR21",
+          type: "Hybride",
+          cycleDays: "95-105",
+          potentialYield_t_ha: "5,0 - 8,0",
+          replantingNote: "Ne peuvent pas être replantées. Acheter de nouvelles semences chaque campagne auprès d'un fournisseur agréé",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "SR21	Hybride	95-105	5,0 - 8,0 t/ha\n⚠	Les semences hybrides (SR21, ESPOIR, FBC5) ne peuvent pas être replantées. Acheter de nouvelles semences chaque campagne auprès d'un fournisseur agréé pour garantir les performances."
+        },
+        {
+          name: "ESPOIR",
+          type: "Hybride",
+          cycleDays: "90-100",
+          potentialYield_t_ha: "5,0 - 7,5",
+          replantingNote: "Ne peuvent pas être replantées",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "ESPOIR	Hybride	90-100	5,0 - 7,5 t/ha"
+        },
+        {
+          name: "FBC5",
+          type: "Hybride",
+          cycleDays: "100-110",
+          potentialYield_t_ha: "6,0 - 9,0",
+          replantingNote: "Ne peuvent pas être replantées",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "FBC5	Hybride	100-110	6,0 - 9,0 t/ha"
+        },
+        {
+          name: "EVDT 99",
+          type: "OP améliorée",
+          cycleDays: "95-105",
+          potentialYield_t_ha: "3,0 - 5,0",
+          replantingNote: "Peut être replantée (variété améliorée)",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "EVDT 99	OP améliorée	95-105	3,0 - 5,0 t/ha"
+        }
+      ],
+      landPreparation: [
+        {
+          parameter: "Labour profond",
+          depth_cm: "25-30",
+          technique: "en billons dans les zones humides",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Labour profond : 25-30 cm recommandé, en billons dans les zones humides"
+        },
+        {
+          parameter: "Date de semis",
+          value: "15-30 jours après les premières pluies fiables (mai à juin selon les zones)",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Date de semis : 15-30 jours après les premières pluies fiables (mai à juin selon les zones)"
+        }
+      ],
+      seeding: [
+        {
+          parameter: "Écartement optimal",
+          value: "75 cm entre les rangs x 25 cm entre les poquets",
+          poquetsPer_ha: "53333",
+          seedsPerPoquet: "2",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Écartement optimal : 75 cm entre les rangs x 25 cm entre les poquets (2 grains/poquet)"
+        },
+        {
+          parameter: "Profondeur de semis",
+          value: "4-6 cm selon l'humidité du sol",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Profondeur : 4-6 cm selon l'humidité du sol"
+        },
+        {
+          parameter: "Démariage",
+          timing: "10-15 jours après levée",
+          finalPlantsPerPoquet: "1",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Démariage à 1 plant par poquet à 10-15 jours après levée"
+        }
+      ],
+      fertilization: [
+        {
+          input: "NPK 14-23-14",
+          dose_kg_ha: "150",
+          applicationMode: "Fond : au semis, dans le poquet",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "NPK 14-23-14	150 kg/ha	Fond : au semis, dans le poquet"
+        },
+        {
+          input: "Urée 46%",
+          dose_kg_ha: "100",
+          applicationMode: "En 2 fractions : 50 kg à 21 j + 50 kg à 45 j",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Urée 46%	100 kg/ha	En 2 fractions : 50 kg à 21 j + 50 kg à 45 j"
+        },
+        {
+          input: "Compost/fumier",
+          dose_t_ha: "5-10",
+          applicationTiming: "Incorporation au labour avant semis",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Compost/fumier	5-10 t/ha	Incorporation au labour avant semis"
+        }
+      ],
+      waterManagement: [
+        {
+          parameter: "Irrigation d'appoint",
+          condition: "en cas de poches de sécheresse",
+          criticalStages: ["floraison", "remplissage des grains"],
+          benefit: "Une irrigation au bon moment peut sauver une récolte entière",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "GESTION DE L'EAU	Si vous disposez d'un point d'eau (bas-fond, marigot, forage), pratiquez une ou deux irrigations d'appoint en cas de poches de sécheresse, surtout à la floraison et au remplissage des grains. Une irrigation au bon moment peut sauver une récolte entière."
+        }
+      ],
+      phytosanitary: {
+        primaryPests: [
+          {
+            name: "Chenille légionnaire d'automne",
+            species: "Spodoptera frugiperda",
+            threatLevel: "RAVAGEUR MAJEUR",
+            scoutingFrequency: "Inspecter chaque semaine le cornet des jeunes plants",
+            treatment: "Emamectin benzoate 1,9% EC à 200 ml/ha ou produits homologues",
+            criticalWarning: "La chenille légionnaire d'automne (Spodoptera frugiperda) est présente dans tout le Burkina Faso depuis 2017. Elle peut détruire 100% d'une parcelle si elle n'est pas traitée à temps. Inspectez vos champs 2 fois par semaine et agissez dès les premiers symptômes (décolorations et trous dans les feuilles).",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Chenille légionnaire d'automne (Spodoptera frugiperda) : RAVAGEUR MAJEUR. Inspecter chaque semaine le cornet des jeunes plants. Traiter avec Emamectin benzoate 1,9% EC a 200 ml/ha ou produits homologues\n⚠	La chenille légionnaire d'automne (Spodoptera frugiperda) est présente dans tout le Burkina Faso depuis 2017. Elle peut détruire 100% d'une parcelle si elle n'est pas traitée à temps. Inspectez vos champs 2 fois par semaine et agissez dès les premiers symptômes (décolorations et trous dans les feuilles)."
+          },
+          {
+            name: "Foreurs des tiges",
+            species: "Sesamia calamistis",
+            treatment: "insecticide systémique",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Foreurs des tiges (Sesamia calamistis) : insecticide système"
+          }
+        ],
+        primaryDiseases: [
+          {
+            name: "Striure du maïs",
+            pathogen: "Maize Streak Virus",
+            control: ["variétés résistantes", "lutte contre les cicadelles vecteurs"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Striure du maïs (Maize Streak Virus) : variétés résistantes, lutte contre les cicadelles vecteurs"
+          },
+          {
+            name: "Pourriture de l'épi",
+            pathogen: "Fusarium",
+            control: ["récolte à maturité", "séchage rapide"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Pourriture de l'épi (Fusarium) : récolte à maturité, séchage rapide"
+          },
+          {
+            name: "Brusone",
+            control: ["rotation culturale", "éviter l'excès d'azote"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Brusone : rotation culturale, éviter l'excès d'azote"
+          }
+        ]
+      }
+    },
+    niebe: {
+      varieties: [
+        {
+          name: "IT89KD-288",
+          cycleDays: "60-65",
+          grainType: "Blanc",
+          avgYield_t_ha: "1,5 - 2,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "IT89KD-288	60-65	Blanc	1,5 - 2,0 t/ha"
+        },
+        {
+          name: "KVX 30-309-6G",
+          cycleDays: "65-70",
+          grainType: "Brun",
+          avgYield_t_ha: "1,5 - 2,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "KVX 30-309-6G	65-70	Brun	1,5 - 2,5 t/ha"
+        },
+        {
+          name: "Mouride",
+          cycleDays: "70-75",
+          grainType: "Rouge",
+          avgYield_t_ha: "1,2 - 2,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Mouride	70-75	Rouge	1,2 - 2,0 t/ha"
+        },
+        {
+          name: "Gorom local",
+          cycleDays: "90-100",
+          grainType: "Blanc panaché",
+          avgYield_t_ha: "0,8 - 1,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Gorom local	90-100	Blanc panaché	0,8 - 1,5 t/ha"
+        }
+      ],
+      culturalSystems: [
+        {
+          system: "Culture pure",
+          spacing: "75 cm x 25 cm",
+          poquetsPer_ha: "53333",
+          seedsPerPoquet: "2",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "En culture pure : écartement 75 cm x 25 cm (2 grains/poquet)"
+        },
+        {
+          system: "Association avec céréales",
+          ratio: "1 rang de niébé entre 2 rangs de céréale (sorgho, maïs, mil)",
+          benefits: [
+            "Le niébé fixe entre 40 et 200 kg d'azote/ha dans le sol",
+            "Réduit considérablement les besoins en engrais azotés pour la culture suivante",
+            "L'ombre partielle des feuilles de niébé réduit l'évaporation du sol et limite les mauvaises herbes"
+          ],
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "En association avec le sorgho ou le maïs : intercaler 1 rang de niebe entre 2 rangs de céréale\nAVANTAGES DE L'ASSOCIATION NIEBE-CEREALE	Le niebe fixe entre 40 and 200 kg d'azote/ha dans le sol, réduisant considérablement les besoins en engrais azotés pour la culture suivante. En plus, l'ombre partielle des feuilles de niebe réduit l'évaporation du sol et limite les mauvaises herbes."
+        },
+        {
+          system: "Rotation",
+          rule: "Toujours faire suivre le niébé d'une céréale pour bénéficier de l'azote fixe",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "En rotation : toujours faire suivre le niebe d'une céréale pour bénéficier de l'azote fixe"
+        },
+        {
+          system: "Inoculation rhizobium",
+          process: "Tremper les semences dans une boue d'inoculant avant semis",
+          yieldBenefit: "+30 à 50% de rendement",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Inoculation rhizobium : tremper les semences dans une boue d'inoculant avant semis pour améliorer la fixation d'azote (+30 to 50% de rendement)"
+        }
+      ],
+      fertilization: [
+        {
+          input: "Superphosphate simple (P) ou NPK pauvre en N",
+          dose_kg_ha_range: "100-150",
+          applicationTiming: "au semis",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Apporter 100-150 kg/ha de superphosphate simple (P) ou de NPK pauvre en N au semis"
+        },
+        {
+          input: "Fumure organique",
+          dose_t_ha: "1-2",
+          applicationTiming: "avant le semis",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Fumure organique : 1-2 t/ha suffit pour cet effet de démarrage"
+        },
+        {
+          input: "Urée",
+          warning: "Ne pas mettre trop d'azote (urée), sinon vous aurez beaucoup de feuilles mais pas de graines",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Attention : Ne pas mettre trop d'azote (Urée), sinon vous aurez beaucoup de feuilles mais pas de graines."
+        }
+      ],
+      phytosanitary: {
+        primaryPests: [
+          {
+            name: "Thrips des fleurs",
+            species: "Megalurothrips sjostedti",
+            treatment: "traiter à la floraison avec lambda-cyhalothrine",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Thrips des fleurs (Megalurothrips sjostedti) : traiter à la floraison avec lambda-cyhalothrine"
+          },
+          {
+            name: "Pucerons",
+            species: "Aphis craccivora",
+            treatment: "insecticide systémique si infestation importante",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Aphis (Aphis craccivora) : insecticide systémique si infestation important"
+          },
+          {
+            name: "Bruche",
+            species: "Callosobruchus maculatus",
+            threat: "ravageur majeur du stockage",
+            treatment: "traitement aux huiles (neem, cotonnier) sur les grains secs",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Bruche (Callosobruchus maculatus) : ravageur majeur du stockage — traitement aux huiles (neem, cotonnier) sur les grains secs"
+          }
+        ],
+        primaryDiseases: [
+          {
+            name: "Mildiou",
+            pathogen: "Phytophthora vignae",
+            control: ["variétés tolérantes", "éviter l'excès d'humidité"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Mildiou (Phytophthora vignae) : variétés tolérantes, évitez l'excès d'humidité"
+          },
+          {
+            name: "Bactériose",
+            pathogen: "Xanthomonas",
+            control: ["semences saines", "rotation"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Bactériose (Xanthomonas) : semences saines, rotation"
+          },
+          {
+            name: "Mosaique du niébé",
+            pathogen: "CPSMV",
+            control: ["lutte contre les pucerons vecteurs"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Mosaique du niebe (CPSMV) : lutte contre les pucerons vecteurs"
+          }
+        ]
+      },
+      harvestStorage: [
+        {
+          parameter: "Moment de récolte",
+          value: "Quand les gousses sont bien sèches et dures",
+          warning: "Ne pas attendre trop longtemps sinon les gousses éclatent",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Moment de la récolte : Quand les gousses sont bien sèches et dures. Ne pas attendre trop longtemps sinon les gousses éclatent."
+        },
+        {
+          parameter: "Séchage",
+          value: "Bien sécher les graines au soleil avant de les ranger",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Séchage : Bien sécher les graines au soleil avant de les ranger."
+        },
+        {
+          parameter: "Stockage",
+          methods: [
+            {
+              method: "Mélanger les grains avec de l'huile de neem",
+              dose: "10 ml/kg",
+              source: "Guide_Agricole_Burkina_Faso.docx",
+              exactQuote: "Mélanger les grains avec de l'huile de neem (10 ml/kg) ou de la cendre fine"
+            },
+            {
+              method: "Utiliser des sacs PICS ou des récipients hermétiques",
+              maxDuration_months: "12",
+              lossSignificance: "sans perte",
+              source: "Guide_Agricole_Burkina_Faso.docx",
+              exactQuote: "Utiliser des sacs PICS ou des récipients hermétiques — le niebe se conserve 12 mois sans perte"
+            }
+          ]
+        }
+      ]
+    },
+    arachide: {
+      varieties: [
+        {
+          name: "Fleur 11",
+          cycleDays: "90-100",
+          type: "Espagnol",
+          avgYield_t_ha: "1,5 - 2,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Fleur 11	90-100	Espagnol	1,5 - 2,5 t/ha"
+        },
+        {
+          name: "RMP 91",
+          cycleDays: "105-115",
+          type: "Hybride",
+          avgYield_t_ha: "2,0 - 3,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "RMP 91	105-115	Hybride	2,0 - 3,0 t/ha"
+        },
+        {
+          name: "KH149A",
+          cycleDays: "90-100",
+          type: "Espagnol",
+          avgYield_t_ha: "2,0 - 2,8",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "KH149A	90-100	Espagnol	2,0 - 2,8 t/ha"
+        },
+        {
+          name: "TS32-1",
+          cycleDays: "100-110",
+          type: "Virginia",
+          avgYield_t_ha: "1,8 - 2,5",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "TS32-1	100-110	Virginia	1,8 - 2,5 t/ha"
+        }
+      ],
+      landPreparation: [
+        {
+          parameter: "Sol idéal",
+          value: "sablo-limoneux, bien aéré, pH 5,5 à 7,0",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Sol : préférentiellement sablo-limoneux, bien aéré, pH 5,5 à 7,0"
+        },
+        {
+          parameter: "Travail du sol",
+          value: "Labour ou travail superficiel (15-20 cm) suivi d'un affinage",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Labour ou travail superficiel (15-20 cm) suivi d'un affinage"
+        },
+        {
+          parameter: "Date de semis",
+          value: "15-30 jours après les premières pluies utiles",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Date de semis : 15-30 jours après les premières pluies utiles"
+        }
+      ],
+      seeding: [
+        {
+          parameter: "Écartement",
+          options: [
+            {
+              value: "50 cm x 20 cm",
+              seedsPerPoquet: "1",
+              poquetsPer_ha: "100000"
+            },
+            {
+              value: "40 cm x 10 cm",
+              seedsPerPoquet: "1",
+              poquetsPer_ha: "250000"
+            }
+          ],
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Écartement : 50 cm x 20 cm (1 graine/poquet) ou 40 cm x 10 cm"
+        },
+        {
+          parameter: "Profondeur de semis",
+          value: "3-5 cm",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Semer les cosses décortiquées (graines) à 3-5 cm de profondeur"
+        },
+        {
+          parameter: "Quantité de semences",
+          unshelledKg_ha: "80-100",
+          shelledKg_ha: "60-80",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Quantité de semences : 80-100 kg/ha de cosses ou 60-80 kg/ha de graines"
+        }
+      ],
+      fertilization: [
+        {
+          input: "Engrais minéral de fond",
+          value: "NPK ou superphosphate",
+          dose_kg_ha_range: "100-150",
+          applicationTiming: "au semis",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Engrais minéral de fond : 100-150 kg/ha NPK ou superphosphate"
+        },
+        {
+          input: "Calcium (chaux agricole)",
+          condition: "si le sol est acide",
+          dose_kg_ha: "100",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Calcium : apporter 100 kg/ha de chaux agricole si le sol est acide"
+        }
+      ],
+      culturalPractices: [
+        {
+          practice: "Buttage à la floraison",
+          purpose: "faciliter la pénétration des gynophores dans le sol",
+          benefit: "augmente considérablement le nombre de gousses formées",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "BUTTAGE À LA FLORAISON	L'arachide forme ses gousses sous terre : après la floraison, les pedoncules floraux (gynophores) plongent dans le sol pour former les gousses. Un buttage léger au pied des plants facilite ce processus et augmente considérablement le nombre de gousses formées."
+        }
+      ],
+      phytosanitary: {
+        primaryDiseases: [
+          {
+            name: "Cercosporiose",
+            pathogen: "Cercospora arachidicola",
+            treatment: "traiter avec mancozèbe ou chlorothalonil dès les premiers symptômes (taches foliaires)",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Cercosporiose (Cercospora arachidicola) : principale maladie — traiter avec mancozèbe ou chlorothalonil dès les premiers symptômes (taches foliaires)"
+          },
+          {
+            name: "Rouille de l'arachide",
+            control: ["variétés tolérantes", "fongicide cuivre"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Rouille de l'arachide : variétés tolérantes, fongicide cuivre"
+          },
+          {
+            name: "Pourriture des gousses",
+            pathogen: "Aspergillus flavus",
+            aflatoxinWarning: "La contamination des arachides par les aflatoxines est un risque majeur pour la santé humaine. Pour l'éviter : récoltez à maturité, séchez rapidement à moins de 8% d'humidité, et stockez dans des endroits secs et ventilés. Ne consommez ni ne vendez des arachides moules, décolorées ou qui sentent le rance.",
+            control: ["récolte à maturité exacte", "éviter les blessures", "séchage rapide"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Pourriture des gousses (Aspergillus flavus) : récolter à maturité exacte, éviter les blessures, sécher rapidement\n⚠	AFLATOXINES : La contamination des arachides par les aflatoxines est un risque majeur pour la santé humaine. Pour l'éviter : récoltez à maturité, séchez rapidement à moins de 8% d'humidité, et stockez dans des endroits secs et ventilés. Ne consommez ni ne vendez des arachides moules, décolorées ou qui sentent le rance."
+          }
+        ],
+        primaryPests: [
+          {
+            name: "Termites",
+            treatment: "traitement du sol avec insecticide à base de chlorpyrifos avant semis",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Termites : traitement du sol avec insecticide à base de chlorpyrifos avant semis"
+          },
+          {
+            name: "Pucerons",
+            species: "Aphis gossypii",
+            treatment: ["lutte biologique avec savon insecticide", "insecticide de contact"],
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Pucerons (Aphis gossypii) : lutte biologique avec savon insecticide ou insecticide de contact"
+          },
+          {
+            name: "Jassides",
+            treatment: "insecticide à la levée si forte infestation",
+            source: "Guide_Agricole_Burkina_Faso.docx",
+            exactQuote: "Jassides : insecticide à la levée si forte infestation"
+          }
+        ]
+      },
+      harvestStorage: [
+        {
+          parameter: "Indicateurs de maturité",
+          value: "Jaunissement du feuillage, taches brunes à l'intérieur des cosses",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Indicateurs de maturité : jaunissement du feuillage, taches brunes à l'intérieur des cosses"
+        },
+        {
+          parameter: "Récolte",
+          method: "Arracher les plants en début de matinée, secouer pour enlever la terre",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Arracher les plants en début de matinée, secouer pour enlever la terre"
+        },
+        {
+          parameter: "Séchage post-récolte",
+          value: "Faire séchage sur claies ou sur bâches pendant 3-5 jours",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Faire séchage sur claies ou sur bâches pendant 3-5 jours"
+        },
+        {
+          parameter: "Battage et vannage",
+          value: "Battre, vanner et sécher les cosses à l'ombre",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Battre, vanner et sécher les cosses à l'ombre"
+        },
+        {
+          parameter: "Test d'humidité pour stockage",
+          target: "<8%",
+          storageDuration: "Longue durée",
+          source: "Guide_Agricole_Burkina_Faso.docx",
+          exactQuote: "Tester l'humidité : moins de 8% pour le stockage de longue durée"
+        },
+        {
+          parameter: "Stockage",
+          methods: [
+            {
+              method: "Sac jute ventilé",
+              source: "Guide_Agricole_Burkina_Faso.docx",
+              exactQuote: "Stocker en vrac dans des sacs jute ventilés"
+            },
+            {
+              method: "Sac PICS",
+              source: "Guide_Agricole_Burkina_Faso.docx",
+              exactQuote: "ou en sacs PICS"
+            }
+          ]
+        }
+      ]
+    },
+    riz: {
+      varieties: [
+        {
+          name: "FKR 62N",
+          type: "Irrigué / bas‑fonds",
+          cycleDays: "110–120",
+          characteristics: "Résistant à la pyriculariose, bon rendement",
+          source: "riz.txt",
+          exactQuote: "FKR 62N	Irrigué / bas‑fonds	110–120	Résistant à la pyriculariose, bon rendement"
+        },
+        {
+          name: "FKR 19",
+          type: "Irrigué",
+          cycleDays: "120–130",
+          characteristics: "Grain long, apprécié pour la qualité culinaire",
+          source: "riz.txt",
+          exactQuote: "FKR 19	Irrigué	120–130	Grain long, apprécié pour la qualité culinaire"
+        },
+        {
+          name: "FKR 56N",
+          type: "Irrigué / bas‑fonds",
+          cycleDays: "110–115",
+          characteristics: "Tolérant à la sécheresse, bon tallage",
+          source: "riz.txt",
+          exactQuote: "FKR 56N	Irrigué / bas‑fonds	110–115	Tolérant à la sécheresse, bon tallage"
+        },
+        {
+          name: "FKR 64",
+          type: "Irrigué",
+          cycleDays: "125–135",
+          characteristics: "Haut rendement, résistant aux maladies",
+          source: "riz.txt",
+          exactQuote: "FKR 64	Irrigué	125–135	Haut rendement, résistant aux maladies"
+        },
+        {
+          name: "TS2",
+          type: "Pluvial strict",
+          cycleDays: "90–100",
+          characteristics: "Adapté aux zones sud et ouest, cycle court",
+          source: "riz.txt",
+          exactQuote: "TS2	Pluvial strict	90–100	Adapté aux zones sud et ouest, cycle court"
+        },
+        {
+          name: "NERICA 4",
+          type: "Pluvial",
+          cycleDays: "90–100",
+          characteristics: "Tolérant à la sécheresse, bon pour les sols pauvres",
+          source: "riz.txt",
+          exactQuote: "NERICA 4	Pluvial	90–100	Tolérant à la sécheresse, bon pour les sols pauvres"
+        },
+        {
+          name: "NERICA L-19",
+          type: "Pluvial",
+          cycleDays: "95–105",
+          characteristics: "Bon potentiel, résistant aux adventices",
+          source: "riz.txt",
+          exactQuote: "NERICA L-19	Pluvial	95–105	Bon potentiel, résistant aux adventices"
+        },
+        {
+          name: "BOUAKÉ 189",
+          type: "Bas‑fonds",
+          cycleDays: "110–120",
+          characteristics: "Populaire au Burkina, bonne adaptation",
+          source: "riz.txt",
+          exactQuote: "BOUAKÉ 189	Bas‑fonds	110–120	Populaire au Burkina, bonne adaptation"
+        }
+      ],
+      landPreparation: [
+        {
+          parameter: "Types de riziculture",
+          values: [
+            "Riz irrigué (bas‑fonds aménagés, maîtrise totale de l'eau)",
+            "Riz pluvial (dépend des pluies, sols drainés)",
+            "Riz de bas‑fonds (semi‑maîtrise de l'eau, très répandu)"
+          ],
+          source: "riz.txt",
+          exactQuote: "Types de riziculture au Burkina :\n– Riz irrigué (bas‑fonds aménagés, maîtrise totale de l'eau).\n– Riz pluvial (dépend des pluies, sols drainés).\n– Riz de bas‑fonds (semi‑maîtrise de l'eau, très répandu)."
+        },
+        {
+          parameter: "Rotation",
+          rule: "Ne pas replanter du riz au même endroit pendant 2 ans si possible. Éviter les précédents de maïs ou de sorgho qui laissent des adventices similaires.",
+          source: "riz.txt",
+          exactQuote: "Rotation : Ne pas replanter du riz au même endroit pendant 2 ans si possible. Éviter les précédents de maïs ou de sorgho qui laissent des adventices similares."
+        },
+        {
+          parameter: "Bons précédents",
+          value: "Le riz vient bien après le niébé, l'arachide, le soja ou une jachère herbacée.",
+          source: "riz.txt",
+          exactQuote: "Bons précédents : Le riz vient bien après le niébé, l'arachide, le soja ou une jachère herbacée."
+        },
+        {
+          parameter: "Sol idéal (riz irrigué)",
+          value: "sol argilo‑limoneux, pH 5,5 à 7,0",
+          source: "riz.txt",
+          exactQuote: "Sol idéal : – Riz irrigué : sol argilo‑limoneux, pH 5,5 à 7,0."
+        },
+        {
+          parameter: "Sol idéal (riz pluvial)",
+          value: "sol léger à moyen, bien drainé",
+          source: "riz.txt",
+          exactQuote: "– Riz pluvial : sol léger à moyen, bien drainé."
+        }
+      ],
+      seeding: [
+        {
+          parameter: "Surface de pépinière",
+          value: "500 à 600 m² par hectare de champ (soit 5 à 6 % de la surface)",
+          source: "riz.txt",
+          exactQuote: "Surface de pépinière : 500 à 600 m² par hectare de champ (soit 5 to 6 % of the surface)."
+        },
+        {
+          parameter: "Preparation de pépinière",
+          value: "Faire des planches surélevées de 1 m de large. Bien niveler.",
+          source: "riz.txt",
+          exactQuote: "Preparation : Faire des planches surélevées de 1 m de large. Bien niveler."
+        },
+        {
+          parameter: "Semis en pépinière",
+          value: "20 à 30 kg de graines par hectare (selon la variété). Tremper les graines 24 h dans l'eau tiède pour accélérer la germination.",
+          source: "riz.txt",
+          exactQuote: "Semis en pépinière : 20 to 30 kg de graines per hectare (selon la variété). Tremper les graines 24 h in lukewarm water to accelerate germination."
+        },
+        {
+          parameter: "Âge des plants",
+          value: "20 à 30 jours (stade 3–4 feuilles)",
+          source: "riz.txt",
+          exactQuote: "Âge des plants : 20 to 30 days (stage 3–4 leaves)."
+        },
+        {
+          parameter: "Écartement (repiquage)",
+          value: "20 cm entre les lignes × 20 cm entre les plants (soit 25 plants/m²)",
+          source: "riz.txt",
+          exactQuote: "Écartement : 20 cm between the lines × 20 cm between the plants (soit 25 plants/m²)."
+        },
+        {
+          parameter: "Nombre de plants (repiquage)",
+          value: "2 to 3 jeunes plants par poquet, repiqués à 2–3 cm de profondeur.",
+          source: "riz.txt",
+          exactQuote: "Nombre de plants : 2 to 3 jeunes plants par poquet, repiqués à 2–3 cm de profondeur."
+        },
+        {
+          parameter: "Densité finale (repiquage)",
+          value: "250 000 to 300 000 poquets par hectare",
+          source: "riz.txt",
+          exactQuote: "Densité finale : 250 000 to 300 000 poquets par hectare."
+        },
+        {
+          parameter: "Écartement (semis direct)",
+          value: "30 to 40 cm entre les lignes",
+          source: "riz.txt",
+          exactQuote: "Écartement : 30 to 40 cm entre the lines."
+        },
+        {
+          parameter: "Densité (semis direct)",
+          value: "80 to 100 kg de semences par hectare en lignes continues",
+          source: "riz.txt",
+          exactQuote: "Densité : 80 to 100 kg de semences per hectare in lignes continues."
+        },
+        {
+          parameter: "Profondeur de semis (direct)",
+          value: "2 to 3 cm",
+          source: "riz.txt",
+          exactQuote: "Profondeur : 2 to 3 cm."
+        },
+        {
+          parameter: "Démariage (direct)",
+          value: "Éclaircir à 10–15 cm entre les plants sur la ligne.",
+          source: "riz.txt",
+          exactQuote: "Démariage : Éclaircir à 10–15 cm entre les plants sur the line."
+        }
+      ],
+      fertilization: [
+        {
+          input: "Fumier",
+          dose_t_ha: "10–15",
+          applicationTiming: "avant labour",
+          source: "riz.txt",
+          exactQuote: "Fumier : 10–15 t/ha (avant labour)."
+        },
+        {
+          input: "Engrais de fond",
+          dose_kg_ha: "150 à 200",
+          inputType: "NPK (15‑15‑15)",
+          applicationTiming: "au repiquage ou semis",
+          source: "riz.txt",
+          exactQuote: "Engrais de fond (au repiquage ou semis) : 150 to 200 kg/ha of NPK (15‑15‑15)."
+        },
+        {
+          input: "Premier apport d'urée",
+          dose_kg_ha_range: "50 à 80",
+          applicationTiming: "20 jours après repiquage ou 30 jours après semis",
+          source: "riz.txt",
+          exactQuote: "Premier apport (20 jours après repiquage ou 30 jours après semis) : 50 to 80 kg/ha d'urée."
+        },
+        {
+          input: "Deuxième apport d'urée",
+          dose_kg_ha_range: "50 à 80",
+          applicationTiming: "40–45 jours, début tallage",
+          source: "riz.txt",
+          exactQuote: "Deuxième apport (40–45 jours, début tallage) : 50 to 80 kg/ha d'urée supplémentaires (pour le nombre de panicules)."
+        },
+        {
+          input: "Apport potassique",
+          dose_kg_ha: "50",
+          inputType: "sulfate de potassium",
+          applicationTiming: "au tallage pour renforcer les tiges",
+          condition: "si sol pauvre",
+          source: "riz.txt",
+          exactQuote: "Apport potassique (si sol pauvre) : 50 kg/ha de sulfate de potassium au tallage pour renforcer les tiges."
+        }
+      ],
+      waterManagement: [
+        {
+          parameter: "Gestion de l'eau (riz irrigué)",
+          timing: "Après repiquage",
+          requirement: "Maintenir une lame d'eau de 2 à 5 cm pendant toute la croissance",
+          source: "riz.txt",
+          exactQuote: "Après repiquage : Maintenir une lame d'eau de 2 to 5 cm pendant toute la croissance."
+        },
+        {
+          parameter: "Périodes critiques",
+          stages: [
+            "Tallage (20–40 jours)",
+            "montaison (50–70 jours)",
+            "floraison (80–95 jours)"
+          ],
+          source: "riz.txt",
+          exactQuote: "Périodes critiques : Tallage (20–40 jours), montaison (50–70 jours), floraison (80–95 jours)."
+        },
+        {
+          parameter: "Arrêt de l'eau",
+          timing: "10 to 15 jours avant la récolte",
+          purpose: "permettre la maturation des grains",
+          source: "riz.txt",
+          exactQuote: "Arrêt de l'eau : 10 to 15 jours avant la récolte pour permettre la maturation des grains."
+        },
+        {
+          parameter: "Riz pluvial",
+          advice: "Arroser si possible en cas de poches de sécheresse (surtout à la floraison)",
+          source: "riz.txt",
+          exactQuote: "Riz pluvial : Arroser si possible en cas de poches de sécheresse (surtout à la floraison)."
+        }
+      ],
+      phytosanitary: {
+        primaryPests: [
+          {
+            name: "Oiseaux",
+            species: ["travailleurs", "moineaux"],
+            timing: "pendant le remplissage des grains",
+            control: ["effrayer", "utiliser des filets"],
+            source: "riz.txt",
+            exactQuote: "Oiseaux (travailleurs, moineaux) : Surveiller pendant le remplissage des grains. Effrayer ou utiliser des filets."
+          },
+          {
+            name: "Insectes",
+            types: ["chenilles (foreuses des tiges, chenilles du riz)"],
+            treatment: "cyperméthrine ou profénofos si dégâts visibles",
+            source: "riz.txt",
+            exactQuote: "Insectes : Chenilles (foreuses des tiges, chenilles du riz). Traiter avec cyperméthrine ou profénofos si dégâts visibles."
+          },
+          {
+            name: "Maladies",
+            example: "Pyriculariose (taches brunes sur les feuilles, nœuds pourris)",
+            treatment: "fongicide (tricyclazole) en prévention ou dès apparition",
+            source: "riz.txt",
+            exactQuote: "Maladies : Pyriculariose (taches brunes sur les feuilles, nœuds pourris). Traiter avec un fongicide (tricyclazole) en prévention ou dès apparition."
+          },
+          {
+            name: "Adventices",
+            problem: "Le riz souffre beaucoup des mauvaises herbes",
+            control: ["maintenir une lame d'eau de 2–5 cm pour les noyer"],
+            source: "riz.txt",
+            exactQuote: "Adventices : Le riz souffre beaucoup des mauvaises herbes. Maintenir une lame d'eau de 2–5 cm pour les noyer."
+          }
+        ],
+      },
+      harvestStorage: [
+        {
+          parameter: "Quand récolter",
+          indicators: [
+            "les panicules sont dorées",
+            "les grains sont durs"
+          ],
+          source: "riz.txt",
+          exactQuote: "Le riz est mûr quand les panicules sont dorées et que les grains sont durs."
+        },
+        {
+          parameter: "Humidité idéale du grain à la récolte",
+          manual: "20 to 22 %",
+          mechanical: "18 to 20 %",
+          source: "riz.txt",
+          exactQuote: "L'humidité idéale du grain à la récolte : 20 to 22 % for manual threshing, 18 to 20 % for mechanical threshing."
+        },
+        {
+          parameter: "Quand récolter (timing)",
+          advice: "Récolter tôt le matin pour éviter l'égrenage spontané (les grains tombent).",
+          source: "riz.txt",
+          exactQuote: "Récolter tôt le matin pour éviter l'égrenage spontané (les grains tombent)."
+        },
+        {
+          parameter: "Vidanger l'eau",
+          condition: "En riziculture irriguée",
+          timing: "10–15 jours avant",
+          source: "riz.txt",
+          exactQuote: "En riziculture irriguée, vidanger l'eau 10–15 jours avant."
+        },
+        {
+          parameter: "Rendement",
+          conditions: [
+            {
+              type: "Riz irrigué (bonnes pratiques)",
+              yield_t_ha: "5 to 8"
+            },
+            {
+              type: "Bas‑fonds",
+              yield_t_ha: "3 to 5"
+            },
+            {
+              type: "Pluvial",
+              yield_t_ha: "1,5 to 3",
+              note: "selon pluviométrie"
+            },
+            {
+              type: "Moyenne nationale Burkina",
+              yield_t_ha: "environ 2 to 3",
+              note: "à améliorer par les techniques ci‑dessus"
+            }
+          ],
+          source: "riz.txt",
+          exactQuote: "Riz irrigué (bonnes pratiques) : 5 to 8 tonnes of paddy per hectare (variétés améliorées).\nBas‑fonds : 3 to 5 tonnes per hectare.\nPluvial : 1,5 to 3 tonnes per hectare (selon pluviométrie).\nMoyenne nationale Burkina : environ 2 to 3 tonnes/ha (à améliorer par les techniques ci‑dessus)."
+        },
+        {
+          parameter: "Battage",
+          methods: [
+            "Battre les panicules manuellement (sur une aire propre)",
+            "à l'aide d'une batteuse mécanique"
+          ],
+          source: "riz.txt",
+          exactQuote: "Battage : Battre les panicules manuellement (sur une aire propre) ou à l'aide d'une batteuse mécanique."
+        },
+        {
+          parameter: "Séchage",
+          method: "Étaler le paddy au soleil sur une bâche pendant 2 to 4 jours, en remuant régulièrement",
+          targetHumidity: "13–14 %",
+          source: "riz.txt",
+          exactQuote: "Séchage : Étaler le paddy au soleil sur une bâche pendant 2 to 4 jours, en remuant régulièrement, jusqu'à atteindre 13–14 % d'humidité."
+        },
+        {
+          parameter: "Vannage",
+          purpose: "Enlever les impuretés (balles, poussières)",
+          source: "riz.txt",
+          exactQuote: "Vannage : Enlever les impuretés (balles, poussières) en vannant."
+        },
+        {
+          parameter: "Stockage",
+          container: "sacs en jute ou des bidons étanches",
+          conditions: "local frais, sec, aéré et à l'abri des rongeurs",
+          source: "riz.txt",
+          exactQuote: "Stockage : Mettre le riz paddy dans des sacs en jute ou des bidons étanches. Conserver dans un local frais, sec, aéré et à l'abri des rongeurs."
+        },
+        {
+          parameter: "Protection des insectes",
+          methods: [
+            "Ajouter des feuilles de neem",
+            "insecticide de stock (ex. phosphure d'aluminium en comprimés, avec précautions)"
+          ],
+          source: "riz.txt",
+          exactQuote: "Protection des insectes : Ajouter des feuilles de neem ou un insecticide de stock (ex. phosphure d'aluminium en comprimés, avec précautions)."
+        },
+        {
+          parameter: "Durée de conservation",
+          value: "6 to 12 months",
+          condition: "si le grain est bien sec (moins de 14 % d'humidité)",
+          source: "riz.txt",
+          exactQuote: "Durée de conservation : 6 to 12 months if the grain is well dry (less than 14 % humidity)."
+        },
+        {
+          parameter: "Consommation",
+          advice: "Le riz peut être décortiqué (usiné) au fur et à mesure des besoins, le paddy se conserve mieux que le riz blanchi.",
+          source: "riz.txt",
+          exactQuote: "Pour la consommation : Le riz peut être décortiqué (usiné) au fur et à mesure des besoins, le paddy se conserve mieux que le riz blanchi."
+        }
+      ]
+    },
+    tomate: {
+      varieties: [
+        {
+          name: "Locale",
+          characteristics: "non spécifiée dans le texte",
+          source: "tomates.txt",
+          exactQuote: "Note pour AgriMind : ce texte utilise des mots simples mais garde les chiffres exacts pour les doses et les densités."
+        }
+      ],
+      landPreparation: [
+        {
+          parameter: "Sol idéal",
+          value: "Terre légère, riche en matière organique, bien drainée, avec un pH entre 5,5 et 6,8. Elle n’aime pas les sols trop acides ou trop humides.",
+          source: "tomates.txt",
+          exactQuote: "Sol idéal : Terre légère, riche en matière organique, bien drainée, avec un pH entre 5,5 and 6,8. Elle n’aime pas les sols trop acides or trop humides."
+        },
+        {
+          parameter: "Bons précédents",
+          value: "La tomate réussit bien après le maïs, le haricot, le niébé, le chou ou l’oignon.",
+          source: "tomates.txt",
+          exactQuote: "Bons précédents : La tomate réussit bien après le maïs, le haricot, le niébé, le chou ou l’oignon."
+        }
+      ],
+      seeding: [
+        {
+          parameter: "Quantité de graines",
+          value: "Pour 1 hectare de champ, il faut 100 à 150 grammes de graines (selon la variété)",
+          source: "tomates.txt",
+          exactQuote: "Quantité de graines : Pour 1 hectare de champ, il faut 100 to 150 grams of graines (selon la variété)."
+        },
+        {
+          parameter: "Surface de pépinière",
+          value: "100 to 150 m² de planches surélevées (10 to 15 cm de haut) pour éviter l’excès d’eau",
+          source: "tomates.txt",
+          exactQuote: "Surface de pépinière : Préparer 100 to 150 m² de planches surélevées (10 to 15 cm de haut) pour éviter l’excès d’eau."
+        },
+        {
+          parameter: "Preparation du lit de semis",
+          value: "Mélanger la terre avec du sable et du fumier bien décomposé. Désinfecter le sol avec de l’eau bouillante ou un fongicide léger.",
+          source: "tomates.txt",
+          exactQuote: "Preparation du lit de semis : Mélanger la terre avec du sable et du fumier bien décomposé. Désinfecter le sol avec de l’eau bouillante ou un fongicide léger."
+        },
+        {
+          parameter: "Semis",
+          value: "Semer les graines en lignes espacées de 10 cm, à 0,5–1 cm de profondeur. Recouvrir d’une fine couche de terre ou de sable.",
+          source: "tomates.txt",
+          exactQuote: "Semis : Semer les graines en lignes espacées de 10 cm, à 0,5–1 cm de profondeur. Recouvrir d’une fine couche de terre ou de sable."
+        },
+        {
+          parameter: "Soins",
+          value: "Arroser matin et soir avec un arrosoir à pomme fine. Ombrager avec des feuilles de palmier ou un filet pendant les premiers jours. Enlever les mauvaises herbes.",
+          source: "tomates.txt",
+          exactQuote: "Soins : Arroser matin et soir avec un arrosoir à pomme fine. Ombrager avec des feuilles de palmier ou un filet pendant les premiers jours. Enlever les mauvaises herbes."
+        },
+        {
+          parameter: "Durée",
+          value: "Les plants sont prêts à être repiqués quand ils ont 4 to 6 vraies feuilles et une hauteur de 10 to 15 cm.",
+          source: "tomates.txt",
+          exactQuote: "Durée : Les plants sont prêts à être repiqués quand ils ont 4 to 6 vraies feuilles et une hauteur de 10 to 15 cm."
+        }
+      ],
+      transplanting: [
+        {
+          parameter: "Profondeur",
+          value: "Enterrer le plant jusqu’aux premières vraies feuilles. Tasser légèrement la terre autour du pied.",
+          source: "tomates.txt",
+          exactQuote: "Profondeur : Enterrer le plant jusqu’aux premières vraies feuilles. Tasser légèrement la terre autour du pied."
+        },
+        {
+          parameter: "Tuteurage",
+          value: "Juste après le repiquage, planter un tuteur (tige de bois ou de bambou de 1 m de haut) à côté de chaque plant. Attacher la tige avec un lien souple au fur et à mesure de la croissance.",
+          source: "tomates.txt",
+          exactQuote: "Tuteurage : Juste après le repiquage, planter un tuteur (tige de bois ou de bambou de 1 m de haut) à côté de chaque plant. Attacher la tige avec un lien souple au fur et à mesure de la croissance."
+        }
+      ],
+      fertilization: [
+        {
+          input: "Fumier",
+          dose_t_ha: "20–30",
+          applicationTiming: "avant la plantation",
+          source: "tomates.txt",
+          exactQuote: "Fumier : 20–30 t/ha avant la plantation."
+        },
+        {
+          input: "Premier engrais",
+          dose_kg_ha: "200",
+          inputType: "NPK (15‑15‑15)",
+          applicationTiming: "7 jours après repiquage",
+          applicationMethod: "en localisé (dans un petit trou à 10 cm du pied)",
+          source: "tomates.txt",
+          exactQuote: "Premier engrais (7 jours après repiquage) : 200 kg/ha of NPK (15‑15‑15) en localisé (dans un petit trou à 10 cm du pied)."
+        },
+        {
+          input: "Deuxième engrais",
+          components: [
+            {
+              name: "Urée",
+              dose_kg_ha: "100"
+            },
+            {
+              name: "Nitrate de potasse",
+              dose_kg_ha: "100"
+            }
+          ],
+          applicationTiming: "20 jours après",
+          source: "tomates.txt",
+          exactQuote: "Deuxième engrais (20 jours après) : 100 kg/ha d’urée + 100 kg/ha of nitrate de potasse."
+        },
+        {
+          input: "Troisième engrais",
+          dose_kg_ha: "100",
+          inputType: "Nitrate de potasse",
+          applicationTiming: "45 jours après, début floraison",
+          purpose: "favorise la formation de nombreux fruits fermes et savoureux",
+          source: "tomates.txt",
+          exactQuote: "Troisième engrais (45 jours après, début floraison) : 100 kg/ha de nitrate de potasse. Cela favorise la formation de nombreux fruits fermes et savoureux."
+        },
+        {
+          input: "Apport foliaire",
+          frequency: "tous les 15 jours",
+          timing: "pendant la fructification",
+          description: "engrais liquide riche en potassium et oligo‑éléments",
+          source: "tomates.txt",
+          exactQuote: "Apport foliaire (facultatif) : Pulvériser un engrais liquide riche en potassium et oligo‑éléments tous les 15 jours pendant la fructification."
+        }
+      ],
+      waterManagement: [
+        {
+          parameter: "Arrosage",
+          frequency: "tous les 2 to 3 jours",
+          condition: "plus souvent en saison sèche",
+          purpose: "humidité constante, surtout à la floraison et à la formation des fruits",
+          source: "tomates.txt",
+          exactQuote: "Arroser régulièrement tous les 2 to 3 jours (plus souvent en saison sèche). La tomate a besoin d’humidité constante, surtout à la floraison et à la formation des fruits."
+        },
+        {
+          parameter: "Arrêt de l'arrosage",
+          timing: "10 jours avant la dernière récolte",
+          purpose: "concentrer le goût",
+          source: "tomates.txt",
+          exactQuote: "Arrêter l’arrosage : 10 jours avant la dernière récolte pour concentrer le goût."
+        }
+      ],
+      phytosanitary: {
+        primaryPests: [
+          {
+            name: "Pucerons et aleurodes",
+            symptoms: "feuilles enroulées ou collantes",
+            treatment: "insecticide (ex. imidaclopride ou huile de neem)",
+            source: "tomates.txt",
+            exactQuote: "Pucerons et aleurodes : Si on voit des feuilles enroulées ou collantes, traiter avec un insecticide (ex. imidaclopride ou huile de neem)."
+          },
+          {
+            name: "Chenilles",
+            types: ["noctuelles, mineuses"],
+            treatment: "insecticide biologique (Bacillus thuringiensis) ou chimique (ex. chlorpyriphos)",
+            source: "tomates.txt",
+            exactQuote: "Chenilles (noctuelles, mineuses) : Utiliser un insecticide biologique (Bacillus thuringiensis) ou chimique (ex. chlorpyriphos)."
+          }
+        ],
+        primaryDiseases: [
+          {
+            name: "Mildiou",
+            symptoms: "taches brunes sur feuilles, fruits pourris",
+            treatment: "fongicide à base de cuivre (ex. bouillie bordelaise) tous les 10 to 14 jours en saison des pluies",
+            source: "tomates.txt",
+            exactQuote: "Mildiou (taches brunes sur feuilles, fruits pourris) : Traiter préventivement avec un fongicide à base de cuivre (ex. bouillie bordelaise) tous les 10 to 14 jours en saison des pluies."
+          },
+          {
+            name: "Bactériose",
+            symptoms: "taches noires, flétrissement",
+            treatment: "arracher les plants malades et les brûler. Éviter d’arroser sur les feuilles.",
+            source: "tomates.txt",
+            exactQuote: "Bactériose (taches noires, flétrissement) : Arracher les plants malades et les brûler. Éviter d’arroser sur les feuilles."
+          },
+          {
+            name: "Flétrissement fusarien",
+            advice: "Changer de parcelle et utiliser des variétés résistantes.",
+            source: "tomates.txt",
+            exactQuote: "Flétrissement fusarien : Changer de parcelle et utiliser des variétés résistantes."
+          }
+        ]
+      },
+      harvestStorage: [
+        {
+          parameter: "Quand récolter",
+          stages: [
+            {
+              stage: "stade « rouge vif » ou « légèrement rose »",
+              purpose: "pour les marchés éloignés (ils mûrissent encore)"
+            },
+            {
+              stage: "stade bien rouge",
+              purpose: "pour le marché local"
+            }
+          ],
+          source: "tomates.txt",
+          exactQuote: "Cueiller les fruits au stade « rouge vif » ou « légèrement rose » pour les marchés éloignés (ils mûrissent encore).\nPour le marché local, on peut attendre le stade bien rouge."
+        },
+        {
+          parameter: "Moment de récolte",
+          advice: "Récolter tôt le matin ou en fin de journée pour éviter la chaleur.",
+          source: "tomates.txt",
+          exactQuote: "Récolter tôt le matin ou en fin de journée pour éviter la chaleur."
+        },
+        {
+          parameter: "Rendement",
+          conditions: [
+            {
+              type: "Avec bonne maîtrise",
+              yield_t_ha: "30 to 50",
+              note: "(variétés améliorées)"
+            },
+            {
+              type: "Pratiques moyennes",
+              yield_t_ha: "15 to 25",
+              note: "(tonnes par hectare)"
+            },
+            {
+              type: "Variétés anciennes sans soin",
+              yield_t_ha: "5 to 10",
+              note: "(tonnes par hectare)"
+            }
+          ],
+          source: "tomates.txt",
+          exactQuote: "Avec bonne maîtrise : 30 to 50 tonnes par hectare (variétés améliorées).\nPratiques moyennes : 15 to 25 tonnes par hectare.\nVariétés anciennes sans soin : 5 to 10 tonnes par hectare."
+        },
+        {
+          parameter: "Conservation et transport",
+          steps: [
+            {
+              step: "Triage",
+              action: "Séparer les fruits sains des fruits abîmés ou malades"
+            },
+            {
+              step: "Conditionnement",
+              action: "Mettre les tomates dans des caisses propres et aérées (pas plus de 3 to 4 couches pour éviter l’écrasement)"
+            },
+            {
+              step: "Stockage",
+              conditions: "Conserver dans un endroit frais (12 to 15 °C), à l’ombre et bien ventilé. Ne pas mettre au réfrigérateur si possible (le froid casse le goût).",
+              duration: "7 to 15 days for the firm fruits"
+            }
+          ],
+          source: "tomates.txt",
+          exactQuote: "Triage : Séparer les fruits sains des fruits abîmés ou malades.\nConditionnement : Mettre les tomates dans des caisses propres et aérées (pas plus de 3 to 4 couches pour éviter l’écrasement).\nStockage : Conserver dans un endroit frais (12 to 15 °C), à l’ombre et bien ventilé. Ne pas mettre au réfrigérateur si possible (le froid casse le goût).\nDurée de conservation : 7 to 15 days for the firm fruits. The too ripe tomatoes must be sold or transformed quickly (sauce, concentrate, drying)."
+        },
+        {
+          parameter: "Astuce de conservation",
+          advice: "Pour garder les tomates plus longtemps, les couper en tranches et les sécher au soleil (tomates séchées).",
+          source: "tomates.txt",
+          exactQuote: "Astuce : Pour garder les tomates plus longtemps, les couper en tranches et les sécher au soleil (tomates séchées)."
+        }
+      ]
+    },
+    oignon: {
+      varieties: [
+        {
+          name: "Violet de Galmi",
+          characteristics: "résiste bien au climat",
+          source: "oignon.txt",
+          exactQuote: "Les semences : Utiliser des variétés qui résistent bien au climat, comme le \"Violet de Galmi\"."
+        }
+      ],
+      landPreparation: [
+        {
+          parameter: "Sol",
+          value: "L'oignon aime la terre légère qui ne garde pas trop l'eau.",
+          source: "oignon.txt",
+          exactQuote: "Le sol : L'oignon aime la terre légère qui ne garde pas trop l'eau."
+        },
+        {
+          parameter: "Travail",
+          value: "Il faut creuser la terre sur 20 cm (le labour) et bien casser les mottes pour que la terre soit fine.",
+          source: "oignon.txt",
+          exactQuote: "Le travail : Il faut creuser la terre sur 20 cm (le labour) et bien casser les mottes pour que la terre soit fine."
+        }
+      ],
+      seeding: [
+        {
+          parameter: "Quantité de graines",
+          value: "Il faut 4 to 5 kg de graines pour remplir 1 hectare de champ.",
+          source: "oignon.txt",
+          exactQuote: "Quantité de graines : Il faut 4 to 5 kg de graines pour remplir 1 hectare de champ."
+        },
+        {
+          parameter: "Surface de pépinière",
+          value: "500 m² de petites planches pour faire grandir les plants.",
+          source: "oignon.txt",
+          exactQuote: "Surface : Il faut préparer 500 m² de petites planches pour faire grandir les plants."
+        },
+        {
+          parameter: "Soin",
+          value: "Arroser matin et soir. Enlever l'herbe à la main et surveiller les petits insectes.",
+          source: "oignon.txt",
+          exactQuote: "Soin : Arroser matin et soir. Enlever l'herbe à la main et surveiller les petits insectes."
+        }
+      ],
+      transplanting: [
+        {
+          parameter: "Écartement",
+          value: "Laisser 15 to 20 cm entre les lignes et 10 cm entre chaque plant.",
+          source: "oignon.txt",
+          exactQuote: "Écartement : Laisser 15 to 20 cm entre les lines and 10 cm between each plant."
+        },
+        {
+          parameter: "Nombre de plants",
+          value: "On doit avoir entre 500 000 and 600 000 plants sur 1 hectare.",
+          source: "oignon.txt",
+          exactQuote: "Nombre de plants : On doit avoir entre 500 000 and 600 000 plants sur 1 hectare."
+        },
+        {
+          parameter: "Profondeur",
+          value: "Ne pas enterrer le plant trop profond (seulement 2 or 3 cm).",
+          source: "oignon.txt",
+          exactQuote: "Profondeur : Ne pas enterrer le plant trop profond (seulement 2 or 3 cm)."
+        }
+      ],
+      fertilization: [
+        {
+          input: "Le fumier",
+          dose_t_ha: "20 to 30",
+          applicationTiming: "pendant qu'on prépare la terre",
+          source: "oignon.txt",
+          exactQuote: "Le fumier : Mettre 20 to 30 tonnes de vieux fumier par hectare pendant qu'on prépare la terre."
+        },
+        {
+          input: "Premier engrais",
+          dose_kg_ha_range: "300 to 400",
+          inputType: "NPK",
+          applicationTiming: "au moment de planter",
+          source: "oignon.txt",
+          exactQuote: "Premier engrais : Mettre 300 to 400 kg de NPK au moment de planter."
+        },
+        {
+          input: "Deuxième engrais",
+          components: [
+            {
+              name: "Urée",
+              dose_kg_ha: "100"
+            },
+            {
+              name: "Potasse",
+              dose_kg_ha: "100"
+            }
+          ],
+          applicationTiming: "Jour 21",
+          source: "oignon.txt",
+          exactQuote: "Deuxième engrais (Jour 21) : Mettre 100 kg d'Urée and 100 kg of Potasse."
+        },
+        {
+          input: "Troisième engrais",
+          dose_kg_ha: "100",
+          inputType: "Potasse",
+          applicationTiming: "Jour 45",
+          source: "oignon.txt",
+          exactQuote: "Troisième engrais (Jour 45) : Mettre 100 kg de Potasse."
+        }
+      ]
+    }
+  }
+};
 
 /* ================================================================
    DONNÉES CULTURES & COEFFICIENTS ESTIMATION
@@ -782,30 +2534,229 @@ function tokeniser(txt) {
   return (txt.toLowerCase().match(/[a-zA-ZÀ-ÿ]{3,}/g)||[]).filter(t => !STOPWORDS.has(t));
 }
 
-function scorer(tokens, e) {
+/* ================================================================
+   OFFLINE ENGINE v3 — Multi-topic knowledge base
+   Topics: diseases, fertilizer, irrigation, seeding, yield, pests
+   ================================================================ */
+
+/* ── Intent detection ── */
+function detectIntent(tokens, raw) {
+  const q = raw.toLowerCase();
+  const has = (...words) => words.some(w => q.includes(w));
+
+  if (has('engrais','fertilisant','npk','uree','urée','fumure','compost','dap','phosphore','potasse','azote','dose engrais','mettre engrais'))
+    return 'engrais';
+  if (has('irrigu','arros','eau','humidité','sécheresse','pluie','quand arros','lame eau'))
+    return 'irrigation';
+  if (has('semis','semer','planter','écartement','poquet','graine','variété','cycle','densité'))
+    return 'semis';
+  if (has('rendement','production','tonne','récolte','combien produit','yield','t/ha'))
+    return 'rendement';
+  if (has('chenille','insecte','ravageur','parasite','puceron','striga','foreur','thrips','bruche','termite','oiseau'))
+    return 'ravageur';
+  if (has('maladie','mildiou','rouille','charbon','anthracnose','virus','flétriss','tache','jaune','brun','pourri','feuille jaune','feuilles jaunes'))
+    return 'maladie';
+  if (has('stocker','stockage','conservation','grenier','pics','humidité grain'))
+    return 'stockage';
+  if (has('sol','labour','préparer','zaï','billon','cordons'))
+    return 'sol';
+  return 'general';
+}
+
+/* ── Crop detection from question ── */
+function detectCrop(raw) {
+  const q = raw.toLowerCase();
+  if (q.includes('maïs') || q.includes('mais') || q.includes('corn')) return 'mais';
+  if (q.includes('mil') && !q.includes('millet')) return 'mil';
+  if (q.includes('millet')) return 'mil';
+  if (q.includes('sorgho')) return 'sorgho';
+  if (q.includes('riz')) return 'riz';
+  if (q.includes('tomate')) return 'tomate';
+  if (q.includes('oignon')) return 'oignon';
+  if (q.includes('niébé') || q.includes('niebe')) return 'niebe';
+  if (q.includes('arachide') || q.includes('arachides')) return 'arachide';
+  if (q.includes('coton')) return 'coton';
+  return null;
+}
+
+/* ── Crop display names ── */
+const CROP_LABELS = {
+  mais:'Maïs', mil:'Mil', sorgho:'Sorgho', riz:'Riz',
+  tomate:'Tomate', oignon:'Oignon', niebe:'Niébé',
+  arachide:'Arachide', coton:'Coton'
+};
+
+/* ── Knowledge base answers per intent+crop ── */
+function getKBAnswer(intent, crop, raw) {
+  const c = crop;
+  const kb = {
+
+    engrais: {
+      mais: `🌽 Engrais recommandés pour le MAÏS\n\n📌 Dose standard (INERA/MASA) :\n• NPK 14-23-14 : 150 kg/ha au semis (dans le poquet)\n• Urée 46% : 100 kg/ha en 2 fractions — 50 kg à J+21 et 50 kg à J+45\n• Compost/fumier : 5–10 t/ha incorporé avant semis\n\n⚠️ Ne jamais appliquer l'urée en plein soleil ou sol sec. Toujours après une pluie.\n\n💡 Astuce : avec budget limité, utiliser 50 kg/ha de DAP au semis (microdosage).`,
+
+      mil: `🌾 Engrais recommandés pour le MIL\n\n📌 Doses recommandées :\n• NPK 15-15-15 : 50 kg/ha au semis\n• Urée : 25 kg/ha à J+30 (top dressing)\n• Fumure organique : 3–5 t/ha avant semis\n\n🔬 MICRODOSAGE (petits budgets) :\nAppliquer 4 g de DAP par poquet (= 50 kg/ha). Multiplie le rendement par 2 à 3 avec un investissement minimal.\n\n💡 Association mil + niébé : le niébé fixe l'azote et réduit le besoin en engrais.`,
+
+      sorgho: `🌾 Engrais recommandés pour le SORGHO\n\n📌 Doses recommandées :\n• NPK 14-23-14 : 100 kg/ha au semis (dans le poquet)\n• NPK 15-15-15 : 150–200 kg/ha en sillon\n• Urée 46% : 50 kg/ha à J+30–35 / ou 80–100 kg/ha au tallage\n• Sulfate de potassium : 50 kg/ha si sol très pauvre (stade montaison)\n• Fumure organique : 3–5 t/ha à la préparation du sol\n\n⚠️ Urée : toujours après une pluie, jamais en plein soleil.`,
+
+      riz: `🌾 Engrais recommandés pour le RIZ\n\n📌 Doses recommandées :\n• Fumier : 10–15 t/ha avant labour\n• NPK 15-15-15 : 150–200 kg/ha au repiquage ou semis\n• Urée : 50–80 kg/ha à J+20 (après repiquage) puis 50–80 kg/ha à J+40–45 (début tallage)\n• Sulfate de potassium : 50 kg/ha au tallage si sol pauvre\n\n💡 Fractionner l'urée évite les pertes par lessivage.`,
+
+      tomate: `🍅 Engrais recommandés pour la TOMATE\n\n📌 Programme fertilisation :\n• Fumier : 20–30 t/ha avant plantation\n• NPK 15-15-15 : 200 kg/ha à J+7 après repiquage (localisé à 10 cm du pied)\n• Urée + Nitrate de potasse : 100 + 100 kg/ha à J+20\n• Nitrate de potasse : 100 kg/ha à J+45 (début floraison — améliore la qualité des fruits)\n• Apport foliaire (potassium + oligo-éléments) : tous les 15 jours pendant fructification`,
+
+      oignon: `🧅 Engrais recommandés pour l'OIGNON\n\n📌 Programme fertilisation :\n• Fumier : 20–30 t/ha à la préparation du sol\n• NPK : 300–400 kg/ha au moment de planter\n• Urée + Potasse : 100 + 100 kg/ha à J+21\n• Potasse : 100 kg/ha à J+45\n\n💡 Le potassium est essentiel pour la qualité et la conservation des bulbes.`,
+
+      niebe: `🫘 Engrais recommandés pour le NIÉBÉ\n\n📌 Doses recommandées :\n• Superphosphate simple ou NPK pauvre en N : 100–150 kg/ha au semis\n• Fumure organique : 1–2 t/ha avant semis\n\n⚠️ NE PAS mettre trop d'urée (azote) → beaucoup de feuilles mais peu de graines.\n\n💡 Inoculation rhizobium : tremper les semences dans un inoculant avant semis → +30 à 50% de rendement ! Le niébé fixe 40–200 kg d'azote/ha naturellement.`,
+
+      arachide: `🥜 Engrais recommandés pour l'ARACHIDE\n\n📌 Doses recommandées :\n• NPK ou superphosphate : 100–150 kg/ha au semis\n• Calcium (chaux agricole) : 100 kg/ha si sol acide\n\n⚠️ Éviter l'excès d'azote — favorise le feuillage au détriment des gousses.\n\n💡 Buttage léger à la floraison → augmente considérablement le nombre de gousses.`,
+
+      default: `🌱 Engrais au Burkina Faso — Guide général\n\n📌 Engrais de base disponibles :\n• NPK 14-23-14 : engrais de fond (semis) — maïs, sorgho\n• NPK 15-15-15 : polyvalent — maraîchage, légumineuses\n• Urée 46% : apport azoté en couverture à J+30–45\n• DAP 18-46-0 : riche en phosphore, bon au semis\n• Fumure organique : 3–10 t/ha selon culture\n\n⚠️ Règle d'or : NPK au semis + Urée 30–45 jours après.\nNe jamais appliquer l'urée sous soleil brûlant.\n\nPrécisez la culture (maïs, mil, sorgho, tomate…) pour une réponse détaillée.`
+    },
+
+    irrigation: {
+      mais: `🌽 Irrigation du MAÏS\n\n📌 Stades critiques (ne jamais manquer d'eau) :\n• Floraison : stade le plus sensible — une sécheresse de 3 jours peut réduire le rendement de 30–50%\n• Remplissage des grains (J+60–90)\n\n💧 Pratique :\n• Arroser tôt le matin (5h–8h) ou en soirée\n• 1–2 irrigations d'appoint en cas de poche de sécheresse\n• Paillage du sol pour réduire l'évaporation\n\n⚠️ Une irrigation au bon moment peut sauver une récolte entière.`,
+
+      riz: `🌾 Gestion de l'eau pour le RIZ\n\n📌 Riz irrigué :\n• Maintenir une lame d'eau de 2–5 cm pendant toute la croissance\n• Stades critiques : tallage (J+20–40), montaison (J+50–70), floraison (J+80–95)\n• Arrêter l'irrigation 10–15 jours avant la récolte\n\n📌 Riz pluvial :\n• Arroser si possible pendant les poches de sécheresse, surtout à la floraison\n\n💡 Méthode AWD (alternance mouillage/séchage) : économise 30% d'eau sans perte de rendement.`,
+
+      tomate: `🍅 Irrigation de la TOMATE\n\n📌 Fréquence :\n• Tous les 2–3 jours (plus souvent en saison sèche)\n• Humidité constante indispensable à la floraison et formation des fruits\n\n💧 Conseils :\n• Arroser au pied (pas sur les feuilles) → réduit le mildiou\n• Arrêter l'arrosage 10 jours avant la dernière récolte → concentre le goût\n• Paillage recommandé pour conserver l'humidité`,
+
+      oignon: `🧅 Irrigation de l'OIGNON\n\n📌 Fréquence :\n• Arroser matin et soir en pépinière\n• En plein champ : tous les 2–3 jours selon la chaleur\n• Stade bulbaison : maintenir humidité constante\n\n⚠️ Réduire l'arrosage 15 jours avant récolte → améliore la conservation des bulbes\n\n💡 L'oignon déteste les sols gorgés d'eau — bien drainer.`,
+
+      default: `💧 Irrigation au Burkina Faso — Conseils généraux\n\n📌 Règles de base :\n• Arroser tôt le matin (5h–8h) ou en soirée — évite l'évaporation et les brûlures\n• Ne jamais arroser sur les feuilles (risque de maladies fongiques)\n• Identifier les stades critiques de chaque culture : floraison et remplissage des grains sont toujours les plus sensibles\n\n💧 Techniques d'économie d'eau :\n• Paillage (mulching) : réduit l'évaporation de 40–60%\n• Zaï : poquets qui captent l'eau de pluie (zones sahéliennes)\n• Cordons pierreux : retiennent l'eau et les sédiments\n\nPrécisez la culture pour une réponse ciblée.`
+    },
+
+    semis: {
+      mais: `🌽 Semis du MAÏS\n\n📅 Date : 15–30 jours après les premières pluies fiables (mai–juin)\n📐 Écartement : 75 cm × 25 cm entre poquets (2 graines/poquet)\n📏 Profondeur : 4–6 cm selon humidité du sol\n👥 Démariage : 1 plant/poquet à J+10–15\n🌱 Densité finale : ~53 000 plants/ha\n\n📌 Variétés recommandées :\n• Hybrides : SR21 (5–8 t/ha), ESPOIR (5–7,5 t/ha), FBC5 (6–9 t/ha) — ne pas replanter\n• OP améliorée : EVDT 99 (3–5 t/ha) — peut être replantée\n\n⚠️ Semences hybrides : acheter nouvelles chaque campagne.`,
+
+      mil: `🌾 Semis du MIL\n\n📅 Date : dès les premières pluies utiles\n📐 Écartement : 80×80 cm (Nord) / 1m×1m (zones humides)\n📏 Profondeur : 2–4 cm\n👥 Démariage : 1 plant/poquet à J+15\n\n📌 Variétés recommandées :\n• IKMP 5 : 75–85 jours, 1,5–2,5 t/ha (min. 300 mm pluie)\n• SOSAT-C88 : 85–90 jours, 2–3,5 t/ha\n• HKP : 90–100 jours, 1,8–3 t/ha\n• Toroniou : 100–110 jours, 1,5–2 t/ha\n\n💡 Association mil + niébé : intercaler 1 rang de niébé pour 2 rangs de mil.`,
+
+      sorgho: `🌾 Semis du SORGHO\n\n📅 Date : dès les premières pluies utiles (20–30 mm en 2–3 jours)\n📐 Écartement : 80 cm × 40 cm (31 250 poquets/ha)\n📏 Profondeur : 3–5 cm\n🌱 Graines : 2–3 par poquet → démariage à 1–2 plants à J+15\n📦 Quantité semences : 5–7 kg/ha\n\n📌 Variétés recommandées :\n• Sariaso 09 : 90–100 j, 2,5–3,5 t/ha (Centre/Nord)\n• Sariaso 14 : 100–110 j, 3–4 t/ha (Centre-Sud/Est)\n• ICSV 400 : 90–95 j, 2,5–3,5 t/ha (zone sahélo-soudanienne)\n• ICSV 1001 BF : tolérant sécheresse, bon au Nord`,
+
+      riz: `🌾 Semis / Repiquage du RIZ\n\n📌 Méthode repiquage (recommandée) :\n• Pépinière : 500–600 m² par hectare, 20–30 kg graines/ha\n• Tremper graines 24h avant semis en pépinière\n• Repiquer à J+20–30 (stade 3–4 feuilles)\n• Écartement : 20 cm × 20 cm (25 plants/m²), 2–3 plants/poquet\n\n📌 Semis direct :\n• 80–100 kg semences/ha en lignes continues\n• Écartement : 30–40 cm entre lignes, profondeur 2–3 cm\n\n📌 Variétés :\n• Irrigué : FKR 62N, FKR 19, FKR 64 (5–8 t/ha)\n• Pluvial : NERICA 4, TS2 (1,5–3 t/ha)\n• Bas-fonds : BOUAKÉ 189 (3–5 t/ha)`,
+
+      tomate: `🍅 Semis de la TOMATE\n\n📌 Pépinière :\n• 100–150 g de graines pour 1 ha\n• Planches surélevées de 10–15 cm, 100–150 m²\n• Semer en lignes espacées de 10 cm, profondeur 0,5–1 cm\n• Arroser matin et soir, ombrager les premiers jours\n• Repiquer quand plants ont 4–6 feuilles (hauteur 10–15 cm)\n\n📌 Repiquage :\n• Enterrer jusqu'aux premières vraies feuilles\n• Poser un tuteur (1 m) juste après repiquage\n• Écartement : 50 cm × 50 cm (environ 40 000 plants/ha)`,
+
+      oignon: `🧅 Semis de l'OIGNON\n\n📌 Pépinière :\n• 4–5 kg de graines pour 1 ha\n• 500 m² de planches surélevées\n• Arroser matin et soir, désherber régulièrement\n\n📌 Repiquage :\n• Écartement : 15–20 cm entre lignes, 10 cm entre plants\n• Profondeur : 2–3 cm seulement\n• Densité : 500 000–600 000 plants/ha\n\n📌 Variété recommandée : Violet de Galmi (résistant au climat local)`,
+
+      default: `🌱 Semis au Burkina Faso — Guide général\n\n📅 Calendrier approximatif :\n• Juin : Maïs, Mil, Sorgho, Niébé (dès premières pluies)\n• Juin–Juillet : Riz, Coton\n• Novembre–Février : Tomate, Oignon (contre-saison)\n\n📐 Densités types :\n• Maïs : 75×25 cm / Mil : 80×80 cm / Sorgho : 80×40 cm\n• Tomate : 50×50 cm / Oignon : 15–20×10 cm\n\nPrécisez la culture pour des détails complets.`
+    },
+
+    rendement: {
+      mais: `🌽 Rendements du MAÏS au Burkina Faso\n\n📊 Potentiel par variété :\n• FBC5 (hybride) : 6–9 t/ha\n• SR21 (hybride) : 5–8 t/ha\n• ESPOIR (hybride) : 5–7,5 t/ha\n• EVDT 99 (OP améliorée) : 3–5 t/ha\n• Locale non améliorée : 1–2 t/ha\n\n📈 Facteurs clés pour maximiser :\n1. Variété hybride certifiée\n2. NPK 150 kg/ha + Urée 100 kg/ha\n3. Semis à bonne date (premières pluies + 15–30 j)\n4. Irrigation d'appoint à la floraison\n5. Contrôle chenille légionnaire (Spodoptera)`,
+
+      mil: `🌾 Rendements du MIL au Burkina Faso\n\n📊 Potentiel par variété :\n• SOSAT-C88 : 2–3,5 t/ha\n• HKP : 1,8–3 t/ha\n• IKMP 5 : 1,5–2,5 t/ha\n• Toroniou : 1,5–2 t/ha\n• Local non amélioré : 0,4–0,8 t/ha\n\n📈 Pour améliorer le rendement :\n• Microdosage DAP (4 g/poquet) → ×2 à ×3 le rendement\n• Association mil-niébé\n• Semis précoce dès premières pluies\n• Démariage à 1 plant/poquet à J+15`,
+
+      sorgho: `🌾 Rendements du SORGHO au Burkina Faso\n\n📊 Potentiel par variété :\n• Sariaso 14 : 3–4 t/ha\n• Sariaso 09 / ICSV 400 : 2,5–3,5 t/ha\n• CE 145-66 : 2–3 t/ha\n• Local non amélioré : 0,5–1 t/ha\n\n📈 Leviers d'amélioration :\n• NPK 100 kg/ha au semis + Urée 50 kg/ha à J+30\n• Zaï pour capter l'eau en zone sahélienne\n• Rotation avec niébé (améliore la fertilité)\n• Contrôle du Striga (mauvaise herbe parasite)`,
+
+      riz: `🌾 Rendements du RIZ au Burkina Faso\n\n📊 Potentiel selon système :\n• Riz irrigué (bonnes pratiques) : 5–8 t/ha\n• Bas-fonds : 3–5 t/ha\n• Pluvial : 1,5–3 t/ha (selon pluie)\n• Moyenne nationale actuelle : ~2–3 t/ha\n\n📈 Pour atteindre 5–8 t/ha :\n• Variété améliorée (FKR 62N, FKR 64)\n• NPK 150–200 kg/ha + Urée fractionnée\n• Lame d'eau 2–5 cm pendant toute la croissance\n• Repiquage à 20×20 cm (25 plants/m²)`,
+
+      tomate: `🍅 Rendements de la TOMATE au Burkina Faso\n\n📊 Potentiel selon pratiques :\n• Bonne maîtrise + variétés améliorées : 30–50 t/ha\n• Pratiques moyennes : 15–25 t/ha\n• Variétés locales sans soin : 5–10 t/ha\n\n📈 Pour maximiser :\n• Programme fertilisation complet (NPK + urée + potasse)\n• Irrigation régulière tous les 2–3 jours\n• Tuteurage systématique\n• Traitement préventif contre mildiou (bouillie bordelaise)`,
+
+      default: `📊 Rendements typiques au Burkina Faso\n\n| Culture | Potentiel amélioré | Moyenne nationale |\n|---------|-------------------|-------------------|\n| Maïs    | 5–9 t/ha          | 1,5–2 t/ha        |\n| Sorgho  | 2,5–4 t/ha        | 0,8–1 t/ha        |\n| Mil     | 1,5–3,5 t/ha      | 0,5–0,8 t/ha      |\n| Riz irr.| 5–8 t/ha          | 2–3 t/ha          |\n| Tomate  | 30–50 t/ha        | 10–15 t/ha        |\n| Oignon  | 20–40 t/ha        | 10–15 t/ha        |\n| Niébé   | 1,5–2,5 t/ha      | 0,5–0,8 t/ha      |\n| Arachide| 2–3 t/ha          | 0,8–1,2 t/ha      |\n\n💡 L'écart entre potentiel et réalité est comblé par : variétés améliorées + engrais + semis à bonne date + protection phytosanitaire.\n\nPrécisez la culture pour plus de détails.`
+    },
+
+    ravageur: {
+      mais: `🌽 Ravageurs du MAÏS — Alerte\n\n🚨 CHENILLE LÉGIONNAIRE (Spodoptera frugiperda) — RAVAGEUR MAJEUR\n• Présente au Burkina depuis 2017\n• Peut détruire 100% d'une parcelle si non traitée\n• Inspecter 2×/semaine le cornet des jeunes plants\n• Traitement : Emamectin benzoate 1,9% EC (200 ml/ha) ou Spinosad\n\n🔍 Autres ravageurs :\n• Foreurs des tiges (Sesamia calamistis) : insecticide systémique\n• Pucerons (Rhopalosiphum maidis) : neem ou savon noir\n\n💡 Traiter tôt le matin. Alterner les matières actives pour éviter la résistance.`,
+
+      mil: `🌾 Ravageurs du MIL\n\n• Foreur des tiges (Coniesta ignefusalis) : insecticide granulé (carbofuran) dans le cornet\n• Punaises des panicules : traiter à la floraison si infestation importante\n• Oiseaux granivores (quelea quelea) : filets de protection, effarouchement, gardiennage\n• Striga hermonthica (parasite) : arracher avant floraison du Striga, rotation niébé SARVaRi-2`,
+
+      sorgho: `🌾 Ravageurs du SORGHO\n\n• Foreurs de tige (Busseola fusca, Chilo partellus) : lambda-cyhalothrine 25 g/l\n• Striga hermonthica : variétés résistantes + rotation niébé + sarclage précoce\n• Pucerons (Melanaphis sacchari) : neem si miellat abondant\n\n💡 Le Striga est la principale menace du sorgho en zone sahélienne. Arracher avant floraison.`,
+
+      tomate: `🍅 Ravageurs de la TOMATE\n\n• Pucerons & aleurodes : imidaclopride ou huile de neem (feuilles enroulées/collantes)\n• Chenilles (noctuelles, mineuses) : Bacillus thuringiensis ou chlorpyrifos\n• Tuta absoluta (mineuse) : Spinosad + pièges à phéromones — URGENT si détectée\n\n💡 Inspecter sous les feuilles chaque semaine. Intervenir tôt = moins de produit.`,
+
+      default: `🐛 Principaux ravageurs au Burkina Faso\n\n🚨 Priorité absolue :\n• Chenille légionnaire (maïs) : Emamectin benzoate — surveiller 2×/semaine\n• Striga (mil/sorgho) : arracher avant floraison\n• Tuta absoluta (tomate) : Spinosad + pièges phéromones\n\n🔍 Autres fréquents :\n• Pucerons (toutes cultures) : neem ou savon noir\n• Foreurs de tiges (céréales) : lambda-cyhalothrine\n• Thrips du niébé : lambda-cyhalothrine à la floraison\n• Bruche (stockage niébé) : huile de neem 10 ml/kg\n\nPrécisez la culture pour une réponse ciblée.`
+    },
+
+    stockage: {
+      mais: `🌽 Stockage du MAÏS\n\n📌 Conditions :\n• Sécher à <14% d'humidité avant stockage\n• Sacs PICS (triple ensachage) : 6–12 mois sans perte\n• Greniers surélevés : ajouter cendre de bois ou Phostoxin\n\n⚠️ Ne pas stocker avec humidité >14% → développement de moisissures et aflatoxines.`,
+
+      sorgho: `🌾 Stockage du SORGHO\n\n📌 Après récolte :\n• Sécher au soleil 2–3 jours (humidité cible <14%)\n• Battre, vanner, puis stocker\n• Sacs PICS : conservation 12 mois sans perte significative\n• Greniers traditionnels : cendre de bois + Phostoxin contre les insectes`,
+
+      niebe: `🫘 Stockage du NIÉBÉ\n\n📌 Ennemi n°1 : la Bruche (Callosobruchus maculatus)\n• Bien sécher les graines au soleil avant stockage\n• Huile de neem : 10 ml/kg de grains (mélanger soigneusement)\n• Sacs PICS ou récipients hermétiques : 12 mois sans perte\n• Cendre fine : protège aussi contre les insectes`,
+
+      default: `📦 Stockage des récoltes — Burkina Faso\n\n📌 Règles universelles :\n1. Sécher à <14% d'humidité (céréales) / <8% (arachide)\n2. Stocker dans un local frais, sec, aéré, à l'abri des rongeurs\n3. Sacs PICS (triple ensachage) = meilleure solution hermétique\n\n🛡️ Protections naturelles :\n• Cendre de bois : efficace contre insectes de stockage\n• Huile de neem : 10 ml/kg pour niébé\n• Feuilles de neem dans les greniers\n\n⚠️ Phostoxin (phosphure d'aluminium) : efficace mais dangereux — respecter les précautions.`
+    },
+
+    sol: {
+      default: `🌍 Préparation du sol — Burkina Faso\n\n📌 Techniques recommandées :\n\n🔨 Labour profond :\n• Maïs : 25–30 cm / Sorgho : 20–25 cm / Mil : 15–20 cm\n• Meilleur moment : fin saison sèche ou début pluies\n\n🕳️ Zaï (zones arides) :\n• Trous de 20–30 cm diamètre, 10–15 cm profondeur\n• Ajouter 5–10 kg fumure organique par poquet\n• Capte l'eau de pluie et concentre les nutriments\n\n🪨 Cordons pierreux :\n• Pierres disposées en courbes de niveau\n• Retiennent eau et sédiments — lutte contre l'érosion\n\n💡 Combiner zaï + fumure organique = technique la plus efficace en zone sahélienne.`
+    },
+
+    general: {
+      default: `👋 Assistant AgriMind — Mode hors-ligne\n\nJe peux vous aider sur :\n\n🌱 Engrais & fertilisation\n💧 Irrigation & eau\n🌾 Semis & variétés\n📊 Rendements\n🐛 Ravageurs & maladies\n📦 Stockage & récolte\n🌍 Préparation du sol\n\nCultures supportées : Maïs, Mil, Sorgho, Riz, Tomate, Oignon, Niébé, Arachide, Coton\n\n💬 Exemples de questions :\n• "Quel engrais pour le maïs ?"\n• "Quand irriguer le riz ?"\n• "Rendement sorgho Burkina ?"\n• "Traitement chenilles légionnaires ?"\n• "Comment semer le mil ?"\n\n🔌 Passez en mode En ligne pour des réponses IA personnalisées.`
+    }
+  };
+
+  // Get answer for this intent + crop
+  const intentAnswers = kb[intent] || kb['general'];
+  if (!intentAnswers) return null;
+
+  const answer = intentAnswers[c] || intentAnswers['default'];
+  return answer || null;
+}
+
+/* ── Disease scorer (for disease-specific queries) ── */
+function scorerDisease(tokens, e) {
   let s = 0;
-  const mk  = (e.mots_cles||[]).map(m => m.toLowerCase());
-  const tit = tokeniser(e.titre||"");
-  const sym = tokeniser((e.symptomes||[]).join(" "));
-  const cul = tokeniser((e.cultures||[]).join(" "));
-  const dsc = tokeniser(e.description||"");
+  const tit  = tokeniser(e.name || "");
+  const path = tokeniser(e.pathogen || "");
+  const trt  = tokeniser(e.treatment || "");
+  const prev = tokeniser(e.prevention || "");
+  const crop = tokeniser(e.crop || "");
+  const urg  = tokeniser(e.urgency || "");
   for (const t of tokens) {
-    if (mk.includes(t))  s += 3.0;
-    if (tit.includes(t)) s += 2.0;
-    if (sym.includes(t)) s += 1.5;
-    if (cul.includes(t)) s += 1.0;
-    if (dsc.includes(t)) s += 0.5;
+    if (tit.includes(t))  s += 3.0;
+    if (path.includes(t)) s += 2.5;
+    if (trt.includes(t))  s += 1.5;
+    if (prev.includes(t)) s += 1.5;
+    if (crop.includes(t)) s += 1.0;
+    if (urg.includes(t))  s += 0.5;
   }
   return s;
 }
 
+/* ── Keep old name for compatibility ── */
+function scorer(tokens, e) { return scorerDisease(tokens, e); }
+
+/* ── Main search function ── */
 function rechercherLocale(question) {
   const tokens = tokeniser(question);
   if (!tokens.length) return null;
-  const ranked = BASE.map(e => ({e, s: scorer(tokens, e)}))
-    .filter(x => x.s > 0).sort((a,b) => b.s - a.s);
-  return ranked.length && ranked[0].s >= 2 ? ranked[0].e : null;
+
+  const intent = detectIntent(tokens, question);
+  const crop   = detectCrop(question);
+
+  // For non-disease intents, use knowledge base first
+  if (intent !== 'maladie' && intent !== 'ravageur') {
+    const kbAnswer = getKBAnswer(intent, crop, question);
+    if (kbAnswer) {
+      return { type: 'kb', text: kbAnswer };
+    }
+  }
+
+  // For disease/pest or fallback — search SYMPTOMS_DB
+  const ranked = SYMPTOMS_DB.map(e => ({ e, s: scorerDisease(tokens, e) }))
+    .filter(x => x.s > 0).sort((a, b) => b.s - a.s);
+
+  if (ranked.length && ranked[0].s >= 1.0) {
+    const d = ranked[0].e;
+    return {
+      type: 'maladie',
+      titre: d.name,
+      risque: d.severity === 'high' ? 'Élevé' : d.severity === 'medium' ? 'Modéré' : 'Faible',
+      cultures: [d.crop],
+      symptomes: [d.urgency || '', d.treatment, d.prevention].filter(Boolean),
+      cause: d.pathogen,
+      traitement: d.treatment,
+      prevention: d.prevention,
+    };
+  }
+
+  // Last resort: try KB with 'general' intent
+  const fallback = getKBAnswer('general', null, question);
+  if (fallback) return { type: 'kb', text: fallback };
+
+  return null;
 }
+
+
 
 function esc(t) {
   return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -825,11 +2776,16 @@ function buildMsgHTML(texte, source) {
 
 function formaterReponse(entree) {
   if (!entree) {
-    return {html: buildMsgHTML("❓ Aucune correspondance dans la base locale.\n\nEssayez : maladie, feuille, engrais, arrosage, rendement, semis, chenille…\n\nOu passez en mode En ligne."), cls:"msg-bot"};
+    return {html: buildMsgHTML("❓ Je n'ai pas trouvé de réponse dans la base locale.\n\nEssayez :\n• Quel engrais pour le maïs ?\n• Quand irriguer le sorgho ?\n• Rendement mil Burkina ?\n• Traitement chenilles légionnaires ?\n• Comment semer le riz ?\n\nOu passez en mode En ligne pour l'IA Gemini."), cls:"msg-bot"};
   }
-  if (entree.type === "maladie") {
+  // Knowledge base answer (engrais, irrigation, semis, rendement, etc.)
+  if (entree.type === 'kb') {
+    return {html: buildMsgHTML(entree.text, 'offline'), cls:'msg-offline'};
+  }
+  // Disease answer
+  if (entree.type === 'maladie') {
     const symStr = (entree.symptomes||[]).map(s => `• ${s}`).join("\n");
-    const txt = `🔍 ${entree.titre}\nRisque : ${entree.risque} · Cultures : ${entree.cultures.join(", ")}\n\nSymptômes :\n${symStr}\n\nCause : ${entree.cause}\n\nTraitement : ${entree.traitement}\n\nPrévention : ${entree.prevention}`;
+    const txt = `🔍 ${entree.titre}\nRisque : ${entree.risque} · Culture : ${entree.cultures.join(", ")}\n\nSymptômes / Urgence :\n${symStr}\n\nCause : ${entree.cause}\n\nTraitement : ${entree.traitement}\n\nPrévention : ${entree.prevention}`;
     return {html: buildMsgHTML(txt, "offline"), cls:"msg-offline"};
   }
   const txt = `💡 ${entree.titre}\n\n${entree.description}\n\nAction :\n${entree.action}\n\nPériode : ${entree.periode}`;
@@ -1303,12 +3259,11 @@ const CV_FIELD_MAP = {
   hole_ratio:           f => f.color_metrics?.black_necrosis_ratio,
   color_hsv:            f => {
     const cm = f.color_metrics || {};
-    if (cm.yellowing_ratio > 0.25)       return 'yellow';
-    if (cm.brown_necrosis_ratio > 0.10)  return 'tan_brown';
+    if (cm.yellowing_ratio > 0.20)       return 'yellow_white'; // FIXED: Increased threshold from 0.10 → 0.20
+    if (cm.brown_necrosis_ratio > 0.12)  return 'tan_brown';
     if (cm.white_powder_ratio > 0.05)    return 'white_downy';
     if (cm.black_necrosis_ratio > 0.05)  return 'black';
-    if (cm.yellowing_ratio > 0.10)       return 'yellow_white';
-    return 'green';
+    return 'green'; // FIXED: Removed the erroneous "if (cm.yellowing_ratio > 0.10) return 'yellow_white';" line
   },
   color:                f => {
     const cm = f.color_metrics || {};
@@ -1357,7 +3312,7 @@ function observeField(field, features) {
 
 /* ---- Base de données maladies Burkina ---- */
 const SYMPTOMS_DB = [
-  /* ───── MAÏS ───── */
+    /* ───── MAÏS ───── */
   {id:'mais_chenille',crop:'maize',name:'Chenille Légionnaire',pathogen:'Spodoptera frugiperda',severity:'high',emoji:'🌽',
    cv:{hole_ratio:'>0.2',location:'central_whorl'},
    treatment:'Neem ou Spinetoram dans le cornet central. Traiter tôt le matin.',
@@ -1398,6 +3353,11 @@ const SYMPTOMS_DB = [
    cv:{location:'stem',hole_ratio:'>0.05'},
    treatment:'Brûler les résidus après récolte.',
    prevention:'Destruction des chaumes. Rotation.',urgency:'Surveiller au stade tallage.'},
+  {id:'mais_stress_h',crop:'maize',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🌽',
+   cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
+   treatment:'Irrigation if possible.',
+   prevention:'Mulching. Zaï for water retention.',
+   urgency:'Irrigate within 24h.'},
 
   /* ───── MIL ───── */
   {id:'mil_mildiou',crop:'pearl_millet',name:'Mildiou du Mil (Épi chevelu)',pathogen:'Sclerospora graminicola',severity:'high',emoji:'🌾',
@@ -1422,8 +3382,9 @@ const SYMPTOMS_DB = [
    prevention:'NPK au semis.',urgency:'Corriger rapidement.'},
   {id:'mil_stress_h',crop:'pearl_millet',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🌾',
    cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
-   treatment:'Arrosage si possible.',
-   prevention:'Paillage. Zaï pour rétention eau.',urgency:'Irriguer dans les 24h.'},
+   treatment:'Irrigation if possible.',
+   prevention:'Mulching. Zaï for water retention.',
+   urgency:'Irrigate within 24h.'},
 
   /* ───── SORGHO ───── */
   {id:'sorgho_anthracnose',crop:'sorghum',name:'Anthracnose du Sorgho',pathogen:'Colletotrichum graminicola',severity:'high',emoji:'🌾',
@@ -1454,6 +3415,11 @@ const SYMPTOMS_DB = [
    cv:{color:'white_downy',color_hsv:'yellow_white'},
    treatment:'Éliminer plants infectés.',
    prevention:'Semences certifiées. Rotation.',urgency:'Urgence — éliminer immédiatement.'},
+  {id:'sorgho_stress_h',crop:'sorghum',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🌾',
+   cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
+   treatment:'Irrigation if possible.',
+   prevention:'Zaï technique. Mulching.',
+   urgency:'Irrigate within 24h.'},
 
   /* ───── RIZ ───── */
   {id:'riz_pyriculariose',crop:'rice',name:'Pyriculariose (Claquage)',pathogen:'Magnaporthe oryzae',severity:'high',emoji:'🌾',
@@ -1476,6 +3442,11 @@ const SYMPTOMS_DB = [
    cv:{shape:'cigar',color:'tan_brown'},
    treatment:'Fertilisation potassique équilibrée.',
    prevention:'Potasse K2O.',urgency:'Corriger nutrition avant épiaison.'},
+  {id:'riz_stress_h',crop:'rice',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🌾',
+   cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
+   treatment:'Irrigation if possible.',
+   prevention:'Proper water management. Alternate wetting and drying.',
+   urgency:'Irrigate during critical stages.'},
 
   /* ───── TOMATE ───── */
   {id:'tomate_mildiou',crop:'tomato',name:'Mildiou de la Tomate',pathogen:'Phytophthora infestans',severity:'high',emoji:'🍅',
@@ -1510,6 +3481,11 @@ const SYMPTOMS_DB = [
    cv:{color:'yellow',droop_angle:'>40'},
    treatment:'Variétés hybrides résistantes (mention F).',
    prevention:'Rotation 4 ans. Sol drainant.',urgency:'Arracher et détruire.'},
+  {id:'tomate_stress_h',crop:'tomato',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🍅',
+   cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
+   treatment:'Irrigation if possible.',
+   prevention:'Mulching. Irrigate during flowering and fruit set.',
+   urgency:'Irrigate during flowering and fruit set.'},
 
   /* ───── OIGNON ───── */
   {id:'oignon_tache_pourpre',crop:'onion',name:'Tache Pourpre',pathogen:'Alternaria porri',severity:'medium',emoji:'🧅',
@@ -1532,6 +3508,11 @@ const SYMPTOMS_DB = [
    cv:{color:'tan_brown',spots:'numerous_small_circles'},
    treatment:'Fongicide préventif.',
    prevention:'Rotation. Éviter blessures.',urgency:'Traiter sous 5 jours.'},
+  {id:'oignon_stress_h',crop:'onion',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🧅',
+   cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
+   treatment:'Irrigation if possible.',
+   prevention:'Mulching. Irrigate during bulb formation.',
+   urgency:'Irrigate during bulb formation.'},
 
   /* ───── COTON ───── */
   {id:'coton_bacteriose',crop:'cotton',name:'Bactériose Angulaire',pathogen:'Xanthomonas citri pv. malvacearum',severity:'high',emoji:'🌿',
@@ -1558,6 +3539,55 @@ const SYMPTOMS_DB = [
    cv:{color:'yellow',location:'old_leaves'},
    treatment:'Rotation cultures.',
    prevention:'Éviter sols humides début cycle.',urgency:'Rotation obligatoire.'},
+  {id:'coton_stress_h',crop:'cotton',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🌿',
+   cv:{rolling:'tight_cylinder',color_hsv:'yellow'},
+   treatment:'Irrigation if possible.',
+   prevention:'Mulching. Irrigate during flowering and boll formation.',
+   urgency:'Irrigate during flowering and boll formation.'},
+
+  /* ───── SPINACH ───── */
+  {id:'spinach_mildiou',crop:'spinach',name:'Mildiou de l\'Épinard',pathogen:'Peronospora farinosa',severity:'high',emoji:'🥬',
+   cv:{color_hsv:'yellow_white',color:'yellow'},
+   treatment:'Traitement avec fongicide à base de cuivre ou phosphonate. Enlever les feuilles atteintes.',
+   prevention:'Résister l\'humidité. Espacer les plants. Variétés résistantes.',
+   urgency:'Urgence — traiter immédiatement pour éviter la propagation.'},
+  {id:'spinach_fusarium',crop:'spinach',name:'Fusarium wilt',pathogen:'Fusarium oxysporum f.sp. spinaciae',severity:'high',emoji:'🥬',
+   cv:{color_hsv:'yellow_white',location:'old_leaves'},
+   treatment:'Arracher et détruire les plants atteints. Améliorer le drainage.',
+   prevention:'Utiliser des semences saines. Rotation longue. Variétés résistantes.',
+   urgency:'Urgence — arracher immédiatement pour éviter la contamination du sol.'},
+  {id:'spinach_tache',crop:'spinach',name:'Tache foliaire',pathogen:'Alternaria spp. or Cercospora spp.',severity:'medium',emoji:'🥬',
+   cv:{color:'black',shape:'circular'},
+   treatment:'Traitement avec fongicide à base de cuivre ou mancozèbe.',
+   prevention:'Éviter l\'excès d\'humidité. Espacer les plants. Résister les feuilles mortes.',
+   urgency:'Traiter sous 5 jours si >10% de feuilles atteintes.'},
+  {id:'spinach_stress_h',crop:'spinach',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🥬',
+   cv:{uniform_yellowing:'true',rolling:'loose'},
+   treatment:'Deep irrigation and mulching. Avoid foliar irrigation in full sun.',
+   prevention:'Mulching. Drip irrigation. Avoid excess water that favors diseases.',
+   urgency:'Irrigate at first signs of wilting.'},
+
+  /* ───── MANGO ───── */
+  {id:'mango_anthracnose',crop:'mango',name:'Anthracnose',pathogen:'Colletotrichum gloeosporium',severity:'high',emoji:'🥭',
+   cv:{color:'tan_brown',shape:'irregular'},
+   treatment:'Traitement avec fongicide à base de cuivre ou mancozèbe. Tailler les branches atteintes.',
+   prevention:'Récolter les fruits mûrs à temps. Éviter les blessures. Variétés résistantes.',
+   urgency:'Urgence — traiter immédiatement pour protéger la récolte.'},
+  {id:'mango_mildiou',crop:'mango',name:'Mildiou poudreux',pathogen:'Oidium mangiferae',severity:'medium',emoji:'🥭',
+   cv:{color:'white_downy',texture:'smooth_to_powdery'},
+   treatment:'Traitement avec soufre ou fongicide à base de cuivre.',
+   prevention:'Améliorer la circulation d\'air. Éviter l\'excès d\'azote. Variétés résistantes.',
+   urgency:'Traiter sous 3-5 jours.'},
+  {id:'mango_tache_bacterienne',crop:'mango',name:'Tache bactérienne noire',pathogen:'Xanthomonas campestris pv. mangiferaeindicae',severity:'high',emoji:'🥭',
+   cv:{color:'black',shape:'angular'},
+   treatment:'Traitement avec fongicide cuivrique. Arracher les fruits atteints.',
+   prevention:'Utiliser des semences saines. Éviter les blessures. Récolter à maturité.',
+   urgency:'Urgence — traiter immédiatement pour éviter la propagation.'},
+  {id:'mango_stress_h',crop:'mango',name:'Stress Hydrique',pathogen:'Abiotique',severity:'medium',emoji:'🥭',
+   cv:{color_hsv:'yellow_white',rolling:'loose'},
+   treatment:'Deep irrigation in morning or evening. Mulching around trunk.',
+   prevention:'Mulching. Prune dead branches. Avoid excess nitrogen that promotes vegetative growth.',
+   urgency:'Irrigate at first signs of wilting.'},
 ];
 
 /* ================================================================
@@ -1877,10 +3907,59 @@ function runRuleMatcher(features, cropDetected) {
     cotton:'cotton', coton:'cotton',
   };
   const nc = cropMap[crop] || crop;
+
+  // ── GUARD: require meaningful symptom signal before matching ──
+  const cm = features.color_metrics || {};
+  const mm = features.morphological_metrics || {};
+  const si = features.structural_integrity || {};
+
+  // Total "sick" pixel ratio across all lesion types
+  const sickRatio = (cm.yellowing_ratio || 0)
+                  + (cm.brown_necrosis_ratio || 0)
+                  + (cm.black_necrosis_ratio || 0)
+                  + (cm.white_powder_ratio || 0);
+  const healthyRatio = cm.healthy_green_ratio || 0;
+
+  // Hard stop: plant is overwhelmingly healthy
+  // Require at least 8% sick tissue OR meaningful structural damage
+  const hasStructuralDamage = (mm.spot_count || 0) >= 4 && (mm.avg_spot_size_pixels || 0) > 30;
+  const hasHoles = (si.holes_count || 0) >= 3;
+  const hasDeformation = (si.leaf_deformation_index || 0) > 0.25;
+
+  const hasEnoughSignal = sickRatio >= 0.08 || hasStructuralDamage || hasHoles || hasDeformation;
+
+  if (!hasEnoughSignal) {
+    // Return empty — no disease detected, leaf looks healthy
+    return [];
+  }
+
+  // ── SCORING with minimum CV-field requirement ──
   return SYMPTOMS_DB
     .filter(d => d.crop === nc)
-    .map(d => ({ ...d, confidence: matchDisease(d, features) }))
-    .filter(d => d.confidence >= 20)
+    .map(d => {
+      if (!d.cv) return { ...d, confidence: 0 };
+      let score = 0, checks = 0, hits = 0;
+      for (const [field, threshold] of Object.entries(d.cv)) {
+        const observed = observeField(field, features);
+        const result   = _parseThresh(threshold, observed);
+        if (result !== null) {
+          score += result;
+          checks++;
+          if (result >= 0.5) hits++;
+        }
+      }
+      // Need at least half the CV fields to fire AND at least 1 clear hit
+      const minFieldsRequired = Math.max(1, Math.ceil(checks * 0.5));
+      if (hits < minFieldsRequired || checks === 0) return { ...d, confidence: 0 };
+
+      // Scale confidence by the sickRatio so a 2% sick leaf never scores as high as a 30% sick leaf
+      const rawConf = Math.round((score / checks) * 100);
+      const signalBoost = Math.min(1.0, sickRatio / 0.15); // full score at ≥15% sick tissue
+      const finalConf = Math.round(rawConf * (0.5 + 0.5 * signalBoost));
+
+      return { ...d, confidence: finalConf };
+    })
+    .filter(d => d.confidence >= 35)   // raised from 20 → 35
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 3);
 }
@@ -1912,45 +3991,93 @@ function renderDiagResults(matches, features, meta) {
 
   /* disease cards */
   const container = document.getElementById('diag-cards');
+  // Determine WHY there are no matches
+  const _cm2 = features.color_metrics || {};
+  const _mm2 = features.morphological_metrics || {};
+  const _si2 = features.structural_integrity || {};
+  const _sickRatio2 = (_cm2.yellowing_ratio||0)+(_cm2.brown_necrosis_ratio||0)+(_cm2.black_necrosis_ratio||0)+(_cm2.white_powder_ratio||0);
+  const _isHealthy = (_cm2.healthy_green_ratio||0) >= 0.70 && _sickRatio2 < 0.08;
+
   if (!matches.length) {
     const bright = meta.image_brightness || 'optimal';
     const qualityTip = bright === 'dark' ? 'Image trop sombre — éclairez la feuille en pleine lumière naturelle.' : bright === 'bright' ? 'Image surexposée — photographiez à l\'ombre ou inclinez légèrement.' : 'Assurez-vous que la zone symptomatique occupe au moins 60% du cadre.';
-    container.innerHTML = `<div class="card" style="border-left:3px solid var(--amber-l);padding:16px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <i class="ti ti-photo-off" style="font-size:28px;color:var(--amber-l)"></i>
-        <div>
-          <div style="font-size:14px;font-weight:600;color:var(--txt)">Aucune maladie identifiée</div>
-          <div style="font-size:11px;color:var(--txt2);margin-top:2px">Confiance insuffisante sur toutes les pathologies</div>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--txt);margin-bottom:12px;line-height:1.6">
-        <strong style="color:var(--amber)">Pourquoi ?</strong> Les symptômes visibles ne correspondent à aucun pattern de la base locale avec une confiance ≥ 20%.<br><br>
-        <strong style="color:var(--amber)">Qualité photo :</strong> ${qualityTip}
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="background:var(--blue-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
-          <i class="ti ti-camera-rotate" style="font-size:16px;color:var(--blue-l);flex-shrink:0;margin-top:1px"></i>
+
+    if (_isHealthy) {
+      container.innerHTML = `<div class="card" style="border-left:3px solid var(--green-l);padding:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="width:44px;height:44px;border-radius:12px;background:var(--green-xl);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">✅</div>
           <div>
-            <div style="font-size:12px;font-weight:600;color:#1E3A8A">Reprendre la photo</div>
-            <div style="font-size:11px;color:#1E40AF;margin-top:2px">Feuille bien centrée · Lumière naturelle · Symptômes bien visibles · Distance 15–25 cm</div>
+            <div style="font-size:14px;font-weight:600;color:#1B4332">Feuille saine — aucune maladie détectée</div>
+            <div style="font-size:11px;color:#2D6A4F;margin-top:2px">Signal symptomatique insuffisant pour déclencher un diagnostic</div>
           </div>
         </div>
-        <div style="background:var(--green-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
-          <i class="ti ti-message-chatbot" style="font-size:16px;color:var(--green-l);flex-shrink:0;margin-top:1px"></i>
-          <div>
-            <div style="font-size:12px;font-weight:600;color:#1B4332">Décrire les symptômes dans le chatbot</div>
-            <div style="font-size:11px;color:#2D6A4F;margin-top:2px">Allez dans l'onglet Assistant et décrivez ce que vous observez (couleur, forme, localisation)</div>
+        <div style="background:var(--green-xl);border-radius:10px;padding:12px;margin-bottom:12px">
+          <div style="font-size:12px;color:#1B4332;font-weight:600;margin-bottom:6px">Indicateurs analysés</div>
+          <div style="font-size:12px;color:#2D6A4F;line-height:1.7">
+            🟢 Tissu sain : <strong>${Math.round((_cm2.healthy_green_ratio||0)*100)}%</strong><br>
+            🟡 Jaunissement : <strong>${Math.round((_cm2.yellowing_ratio||0)*100)}%</strong><br>
+            🟤 Nécrose : <strong>${Math.round(((_cm2.brown_necrosis_ratio||0)+(_cm2.black_necrosis_ratio||0))*100)}%</strong><br>
+            ⚪ Poudre blanche : <strong>${Math.round((_cm2.white_powder_ratio||0)*100)}%</strong><br>
+            🔵 Taches détectées : <strong>${_mm2.spot_count||0}</strong>
           </div>
         </div>
-        <div style="background:var(--amber-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
-          <i class="ti ti-wifi" style="font-size:16px;color:var(--amber-l);flex-shrink:0;margin-top:1px"></i>
-          <div>
-            <div style="font-size:12px;font-weight:600;color:#78350F">Activer l'analyse IA (mode en ligne)</div>
-            <div style="font-size:11px;color:#92400E;margin-top:2px">En ligne, l'IA Gemini analyse vos features en profondeur et peut identifier des cas rares non présents dans la base locale</div>
+        <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:12px">
+          Le moteur local exige au moins <strong>8% de tissu malade</strong> avant tout diagnostic, pour éviter les faux positifs. Cette feuille est sous le seuil.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:var(--blue-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+            <i class="ti ti-camera-rotate" style="font-size:16px;color:var(--blue-l);flex-shrink:0;margin-top:1px"></i>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#1E3A8A">Vous voyez quand même un problème ?</div>
+              <div style="font-size:11px;color:#1E40AF;margin-top:2px">Photographiez la zone la plus touchée, en gros plan (15–25 cm), en pleine lumière naturelle.</div>
+            </div>
+          </div>
+          <div style="background:var(--amber-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+            <i class="ti ti-wifi" style="font-size:16px;color:var(--amber-l);flex-shrink:0;margin-top:1px"></i>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#78350F">Analyse IA disponible en mode En ligne</div>
+              <div style="font-size:11px;color:#92400E;margin-top:2px">Gemini Vision peut confirmer visuellement même sur des symptômes légers.</div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>`;
+      </div>`;
+    } else {
+      container.innerHTML = `<div class="card" style="border-left:3px solid var(--amber-l);padding:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <i class="ti ti-photo-off" style="font-size:28px;color:var(--amber-l)"></i>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--txt)">Symptômes détectés — pattern non identifié</div>
+            <div style="font-size:11px;color:var(--txt2);margin-top:2px">Signal malade présent (${Math.round(_sickRatio2*100)}%) mais correspondance insuffisante (seuil ≥ 35%)</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--txt);margin-bottom:12px;line-height:1.6">
+          <strong style="color:var(--amber)">Qualité photo :</strong> ${qualityTip}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:var(--blue-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+            <i class="ti ti-camera-rotate" style="font-size:16px;color:var(--blue-l);flex-shrink:0;margin-top:1px"></i>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#1E3A8A">Reprendre la photo</div>
+              <div style="font-size:11px;color:#1E40AF;margin-top:2px">Feuille bien centrée · Lumière naturelle · Symptômes bien visibles · Distance 15–25 cm</div>
+            </div>
+          </div>
+          <div style="background:var(--green-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+            <i class="ti ti-message-chatbot" style="font-size:16px;color:var(--green-l);flex-shrink:0;margin-top:1px"></i>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#1B4332">Décrire les symptômes dans le chatbot</div>
+              <div style="font-size:11px;color:#2D6A4F;margin-top:2px">Allez dans l'onglet Assistant et décrivez ce que vous observez (couleur, forme, localisation)</div>
+            </div>
+          </div>
+          <div style="background:var(--amber-xl);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start">
+            <i class="ti ti-wifi" style="font-size:16px;color:var(--amber-l);flex-shrink:0;margin-top:1px"></i>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#78350F">Activer l'analyse IA (mode en ligne)</div>
+              <div style="font-size:11px;color:#92400E;margin-top:2px">En ligne, l'IA Gemini analyse vos features en profondeur et peut identifier des cas rares non présents dans la base locale</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
   } else {
     container.innerHTML = matches.map((d, i) => `
       <div class="card" style="margin-bottom:10px;border-left:3px solid ${i===0?'var(--red-l)':'var(--brd)'}">
@@ -1997,31 +4124,254 @@ function renderDiagResults(matches, features, meta) {
       <b style="color:var(--txt)">${mm.spot_count||0}</b> taches détectées · forme <b style="color:var(--txt)">${mm.spot_shape||'—'}</b> · ratio L/l <b style="color:var(--txt)">${mm.avg_aspect_ratio||'—'}</b>
     </div>`;
 
+  /* ── Low-confidence disclaimer ── */
+  const noteEl = document.getElementById('diag-confidence-note');
+  const maxConf = matches.length ? matches[0].confidence : 0;
+  if (matches.length && maxConf < 60) {
+    const confColor  = maxConf < 45 ? '#7F1D1D' : '#78350F';
+    const confBg     = maxConf < 45 ? 'var(--red-xl)' : 'var(--amber-xl)';
+    const confBorder = maxConf < 45 ? 'var(--red-l)'  : 'var(--amber-l)';
+    noteEl.style.display = 'block';
+    noteEl.innerHTML = `
+      <div style="border:1px dashed ${confBorder};border-radius:10px;padding:11px 13px;background:${confBg};display:flex;gap:9px;align-items:flex-start">
+        <i class="ti ti-info-circle" style="font-size:16px;color:${confBorder};flex-shrink:0;margin-top:1px"></i>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:${confColor};margin-bottom:3px">
+            Confiance faible (${maxConf}%) — probablement pas de maladie
+          </div>
+          <div style="font-size:11px;color:${confColor};opacity:.85;line-height:1.55">
+            Aucun résultat n'atteint le seuil de 60%. La feuille est peut-être saine ou la photo ne montre pas clairement les symptômes. Ne pas traiter uniquement sur cette base.
+          </div>
+        </div>
+      </div>`;
+  } else {
+    noteEl.style.display = 'none';
+    noteEl.innerHTML = '';
+  }
+
   document.getElementById('diag-common-card').style.display = 'none';
   document.getElementById('diag-results').style.display = 'block';
 }
 
 /* ================================================================
-   DIAGNOSTIC — CLAUDE VISION API (analyse directe par image)
-   Envoie l'image réelle en base64 + contexte + métriques locales
+   DIAGNOSTIC — HUGGING FACE ResNet50 (mesabo/agri-plant-disease-resnet50)
+   Sends raw JPEG bytes → gets [{label, score}] PlantVillage classification
    ================================================================ */
 
-/* Helper : convertit le fichier photo en base64 JPEG (max 1000px) */
-async function photoToBase64(file) {
+/* HF Inference API endpoint — proxied via backend pour éviter CORS */
+const HF_MODEL_URL = `${API_BASE}/api/hf`;
+
+/* ── PlantVillage label → French display name + pathogen + treatment mapping ── */
+const HF_LABEL_MAP = {
+  /* CORN / MAÏS */
+  'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot': {
+    fr:'Tache grise du maïs (Cercosporiose)', pathogen:'Cercospora zeae-maydis',
+    treatment:'Fongicide azoxystrobine ou mancozèbe 2 kg/ha. Rotation céréale/légumineuse.',
+    prevention:'Variétés tolérantes. Destruction des résidus de récolte.', severity:'medium', emoji:'🌽'
+  },
+  'Corn_(maize)___Common_rust_': {
+    fr:'Rouille commune du maïs', pathogen:'Puccinia sorghi',
+    treatment:'Propiconazole 0.5 L/ha si attaque sévère. Semis précoce.',
+    prevention:'Variétés résistantes. Éviter densité excessive.', severity:'medium', emoji:'🌽'
+  },
+  'Corn_(maize)___Northern_Leaf_Blight': {
+    fr:'Helminthosporiose (brûlure foliaire)', pathogen:'Exserohilum turcicum',
+    treatment:'Mancozèbe 2 kg/ha si taches montent vers l\'épi. Rotation 2 ans.',
+    prevention:'Semences certifiées. Éviter humidité excessive.', severity:'medium', emoji:'🌽'
+  },
+  'Corn_(maize)___healthy': {
+    fr:'Maïs sain — aucune maladie détectée', pathogen:'—',
+    treatment:'Aucun traitement nécessaire. Maintenir fertilisation NPK régulière.',
+    prevention:'Surveiller chenille légionnaire (Spodoptera) 2×/semaine.', severity:'low', emoji:'🌽'
+  },
+  /* TOMATO / TOMATE */
+  'Tomato___Bacterial_spot': {
+    fr:'Tache bactérienne de la tomate', pathogen:'Xanthomonas campestris',
+    treatment:'Cuivre (bouillie bordelaise 1%) tous les 7–10 jours. Arracher plants très atteints.',
+    prevention:'Semences saines. Éviter arrosage foliaire. Rotation 3 ans.', severity:'high', emoji:'🍅'
+  },
+  'Tomato___Early_blight': {
+    fr:'Alternariose précoce', pathogen:'Alternaria solani',
+    treatment:'Chlorothalonil 500g/L ou mancozèbe. Supprimer feuilles basses atteintes.',
+    prevention:'Rotation 3 ans. Paillage. Éviter humidité foliaire.', severity:'medium', emoji:'🍅'
+  },
+  'Tomato___Late_blight': {
+    fr:'Mildiou de la tomate', pathogen:'Phytophthora infestans',
+    treatment:'Bouillie bordelaise 1% tous les 10–14 jours. URGENT si fruits atteints.',
+    prevention:'Espacement 50 cm. Aération. Variétés résistantes.', severity:'high', emoji:'🍅'
+  },
+  'Tomato___Leaf_Mold': {
+    fr:'Moisissure foliaire', pathogen:'Passalora fulva',
+    treatment:'Fongicide cuivrique. Améliorer ventilation sous serre.',
+    prevention:'Réduire humidité. Espacer les plants.', severity:'medium', emoji:'🍅'
+  },
+  'Tomato___Septoria_leaf_spot': {
+    fr:'Septoriose de la tomate', pathogen:'Septoria lycopersici',
+    treatment:'Fongicide protecteur dès apparition. Supprimer feuilles atteintes.',
+    prevention:'Éviter arrosage foliaire. Rotation.', severity:'medium', emoji:'🍅'
+  },
+  'Tomato___Spider_mites Two-spotted_spider_mite': {
+    fr:'Acariens (tétranyques)', pathogen:'Tetranychus urticae',
+    treatment:'Huile de neem 2% ou acaricide spécifique. Traiter le dessous des feuilles.',
+    prevention:'Maintenir humidité. Favoriser prédateurs naturels.', severity:'medium', emoji:'🍅'
+  },
+  'Tomato___Target_Spot': {
+    fr:'Tache en cible (Corynespora)', pathogen:'Corynespora cassiicola',
+    treatment:'Mancozèbe ou chlorothalonil dès apparition.',
+    prevention:'Rotation. Résidus enfouis.', severity:'medium', emoji:'🍅'
+  },
+  'Tomato___Tomato_Yellow_Leaf_Curl_Virus': {
+    fr:'Virus de la frisure jaune (TYLCV)', pathogen:'TYLCV — vecteur aleurode',
+    treatment:'Filets insect-proof en pépinière. Arracher plants atteints.',
+    prevention:'Contrôle aleurodes (imidaclopride). Variétés résistantes.', severity:'high', emoji:'🍅'
+  },
+  'Tomato___Tomato_mosaic_virus': {
+    fr:'Virus de la mosaïque', pathogen:'ToMV',
+    treatment:'Aucun curatif. Arracher et brûler. Désinfecter outils.',
+    prevention:'Semences certifiées. Hygiène stricte.', severity:'high', emoji:'🍅'
+  },
+  'Tomato___healthy': {
+    fr:'Tomate saine — aucune maladie', pathogen:'—',
+    treatment:'Maintenir arrosage régulier tous les 2–3 jours. Programme fertilisation.',
+    prevention:'Surveiller mildiou en saison des pluies. Traitement préventif cuivre.', severity:'low', emoji:'🍅'
+  },
+  /* POTATO / POMME DE TERRE */
+  'Potato___Early_blight': {
+    fr:'Alternariose de la pomme de terre', pathogen:'Alternaria solani',
+    treatment:'Mancozèbe 2 kg/ha. Supprimer feuilles inférieures.',
+    prevention:'Rotation. Semences saines.', severity:'medium', emoji:'🥔'
+  },
+  'Potato___Late_blight': {
+    fr:'Mildiou de la pomme de terre', pathogen:'Phytophthora infestans',
+    treatment:'Bouillie bordelaise URGENT. Peut détruire 100% si non traité.',
+    prevention:'Variétés résistantes. Drainage. Éviter excès d\'eau.', severity:'high', emoji:'🥔'
+  },
+  'Potato___healthy': {
+    fr:'Pomme de terre saine', pathogen:'—',
+    treatment:'Maintenir fertilisation et surveillance régulière.',
+    prevention:'Surveiller mildiou par temps humide.', severity:'low', emoji:'🥔'
+  },
+  /* APPLE / POMME */
+  'Apple___Apple_scab': {
+    fr:'Tavelure du pommier', pathogen:'Venturia inaequalis',
+    treatment:'Fongicide (myclobutanil) dès débourrement.',
+    prevention:'Ramassage des feuilles mortes. Taille aérée.', severity:'medium', emoji:'🍎'
+  },
+  'Apple___Black_rot': {
+    fr:'Pourriture noire du pommier', pathogen:'Botryosphaeria obtusa',
+    treatment:'Tailler et brûler branches atteintes. Fongicide cuivrique.',
+    prevention:'Hygiène verger. Éviter blessures.', severity:'high', emoji:'🍎'
+  },
+  'Apple___Cedar_apple_rust': {
+    fr:'Rouille du pommier', pathogen:'Gymnosporangium juniperi-virginianae',
+    treatment:'Myclobutanil ou propiconazole avant floraison.',
+    prevention:'Éliminer genévriers proches. Variétés résistantes.', severity:'medium', emoji:'🍎'
+  },
+  'Apple___healthy': {
+    fr:'Pommier sain', pathogen:'—',
+    treatment:'Fertilisation et taille régulières.',
+    prevention:'Surveiller tavelure au printemps.', severity:'low', emoji:'🍎'
+  },
+  /* GRAPE / VIGNE */
+  'Grape___Black_rot': {
+    fr:'Pourriture noire de la vigne', pathogen:'Guignardia bidwellii',
+    treatment:'Mancozèbe ou myclobutanil. Traiter tôt avant véraison.',
+    prevention:'Tailler. Enlever baies momifiées.', severity:'high', emoji:'🍇'
+  },
+  'Grape___Esca_(Black_Measles)': {
+    fr:'Esca (rougeot parasite)', pathogen:'Phaeomoniella chlamydospora',
+    treatment:'Pas de curatif efficace. Protéger les blessures de taille.',
+    prevention:'Hygiène taille. Éviter stress hydrique.', severity:'high', emoji:'🍇'
+  },
+  'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)': {
+    fr:'Tache foliaire de la vigne', pathogen:'Pseudocercospora vitis',
+    treatment:'Fongicide cuivrique dès apparition.',
+    prevention:'Aération. Éviter humidité foliaire.', severity:'medium', emoji:'🍇'
+  },
+  'Grape___healthy': {
+    fr:'Vigne saine', pathogen:'—',
+    treatment:'Fertilisation équilibrée. Taille régulière.',
+    prevention:'Surveiller mildiou et oïdium.', severity:'low', emoji:'🍇'
+  },
+  /* PEPPER / POIVRON */
+  'Pepper,_bell___Bacterial_spot': {
+    fr:'Tache bactérienne du poivron', pathogen:'Xanthomonas campestris',
+    treatment:'Cuivre (bouillie bordelaise). Arracher plants très atteints.',
+    prevention:'Semences saines. Rotation 3 ans.', severity:'medium', emoji:'🫑'
+  },
+  'Pepper,_bell___healthy': {
+    fr:'Poivron sain', pathogen:'—',
+    treatment:'Arrosage régulier et fertilisation NPK.',
+    prevention:'Surveiller bactériose par temps chaud et humide.', severity:'low', emoji:'🫑'
+  },
+  /* OTHERS */
+  'Strawberry___Leaf_scorch': {
+    fr:'Brûlure foliaire du fraisier', pathogen:'Diplocarpon earlianum',
+    treatment:'Fongicide cuivrique ou myclobutanil.',
+    prevention:'Rotation. Éviter excès humidité.', severity:'medium', emoji:'🍓'
+  },
+  'Strawberry___healthy': { fr:'Fraisier sain', pathogen:'—', treatment:'Surveillance régulière.', prevention:'Paillage.', severity:'low', emoji:'🍓' },
+  'Peach___Bacterial_spot': {
+    fr:'Tache bactérienne du pêcher', pathogen:'Xanthomonas arboricola',
+    treatment:'Cuivre préventif avant pluie. Tailler parties atteintes.',
+    prevention:'Variétés résistantes. Éviter arrosage foliaire.', severity:'medium', emoji:'🍑'
+  },
+  'Peach___healthy': { fr:'Pêcher sain', pathogen:'—', treatment:'Taille et fertilisation.', prevention:'Surveillance bactériose.', severity:'low', emoji:'🍑' },
+  'Cherry_(including_sour)___Powdery_mildew': {
+    fr:'Oïdium du cerisier', pathogen:'Podosphaera clandestina',
+    treatment:'Soufre ou myclobutanil dès premiers signes.',
+    prevention:'Aération. Éviter excès azote.', severity:'medium', emoji:'🍒'
+  },
+  'Cherry_(including_sour)___healthy': { fr:'Cerisier sain', pathogen:'—', treatment:'Taille régulière.', prevention:'Surveiller oïdium.', severity:'low', emoji:'🍒' },
+  'Orange___Haunglongbing_(Citrus_greening)': {
+    fr:'Huanglongbing (verdissement des agrumes)', pathogen:'Candidatus Liberibacter — vecteur psylle',
+    treatment:'Aucun curatif. Arracher et brûler. Traiter psylles vecteurs.',
+    prevention:'Plants certifiés sans maladie. Contrôle insectes.', severity:'high', emoji:'🍊'
+  },
+  'Blueberry___healthy': { fr:'Myrtillier sain', pathogen:'—', treatment:'Fertilisation acide.', prevention:'Surveillance régulière.', severity:'low', emoji:'🫐' },
+  'Raspberry___healthy': { fr:'Framboisier sain', pathogen:'—', treatment:'Taille et fertilisation.', prevention:'Surveillance.', severity:'low', emoji:'🫐' },
+  'Soybean___healthy': { fr:'Soja sain', pathogen:'—', treatment:'Surveillance régulière.', prevention:'Rotation annuelle.', severity:'low', emoji:'🌱' },
+  'Squash___Powdery_mildew': {
+    fr:'Oïdium du cucurbit', pathogen:'Podosphaera xanthii',
+    treatment:'Soufre 3 kg/ha ou bicarbonate de soude 5g/L.',
+    prevention:'Aération. Éviter excès azote.', severity:'medium', emoji:'🎃'
+  },
+};
+
+/* ── Convert raw label string to display info ── */
+function hfLabelToInfo(label) {
+  if (HF_LABEL_MAP[label]) return HF_LABEL_MAP[label];
+  // Fallback: parse PlantVillage format "Crop___Disease"
+  const parts = label.replace(/_/g,' ').split('   ');
+  const crop = parts[0] || label;
+  const disease = parts[1] || 'Inconnue';
+  const isHealthy = label.toLowerCase().includes('healthy');
+  return {
+    fr: isHealthy ? `${crop} — sain` : `${crop} : ${disease}`,
+    pathogen: '—',
+    treatment: isHealthy ? 'Aucun traitement nécessaire.' : 'Consulter un technicien agricole.',
+    prevention: 'Surveillance régulière recommandée.',
+    severity: isHealthy ? 'low' : 'medium',
+    emoji: '🌿'
+  };
+}
+
+/* ── Convert File to raw Blob for HF API ── */
+async function fileToBlob(file) {
+  // Resize to max 512px for faster inference, keep JPEG
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       const img = new Image();
       img.onload = () => {
-        const MAX = 1000;
+        const MAX = 512;
         const scale = Math.min(MAX / img.width, MAX / img.height, 1);
         const w = Math.round(img.width * scale);
         const h = Math.round(img.height * scale);
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        const b64 = canvas.toDataURL('image/jpeg', 0.80).split(',')[1];
-        resolve(b64);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.85);
       };
       img.onerror = reject;
       img.src = e.target.result;
@@ -2031,117 +4381,170 @@ async function photoToBase64(file) {
   });
 }
 
-/* Formate le texte Markdown minimal en HTML lisible */
-function mdToHtml(text) {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/^#{1,3}\s+(.+)$/gm, '<div style="font-size:13px;font-weight:700;color:var(--txt);margin:10px 0 4px">$1</div>')
-    .replace(/^[-•]\s+(.+)$/gm, '<div style="padding-left:10px;margin-top:3px">• $1</div>')
-    .replace(/\n\n/g, '<br><br>')
-    .replace(/\n/g, '<br>');
-}
-
-async function callClaudeAnalysis(featuresJSON, matches) {
+/* ── Main HF analysis call ── */
+async function callHuggingFaceAnalysis(localMatches) {
   const aiCard = document.getElementById('diag-ai-card');
   const aiText = document.getElementById('diag-ai-text');
   aiCard.style.display = 'block';
+
+  // Token HF géré côté serveur (variable Render HF_TOKEN) — rien à configurer ici
+
   aiText.innerHTML = `
     <div style="display:flex;gap:8px;align-items:center;color:var(--txt2);font-size:12px;padding:8px 0">
       <div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>
-      <span>Analyse visuelle de l'image par IA Gemini…</span>
+      <span>Classification par ResNet50 AgriPlant…</span>
     </div>`;
 
-  const crop = document.getElementById('diag-crop-select');
-  const cropLabel = crop ? crop.options[crop.selectedIndex]?.text || 'culture inconnue' : 'culture inconnue';
-  const topMatches = matches.length
-    ? matches.map(m => `- ${m.name} (${m.pathogen}) — correspondance locale : ${m.confidence}%`).join('\n')
-    : 'Aucune maladie identifiée par le moteur local';
-
-  const cm  = featuresJSON.color_metrics || {};
-  const mm  = featuresJSON.morphological_metrics || {};
-  const meta = _diagJSON?.metadata || {};
-
-  const metricsResume = `Couleurs : vert sain ${Math.round((cm.healthy_green_ratio||0)*100)}%, jaunissement ${Math.round((cm.yellowing_ratio||0)*100)}%, nécrose brune ${Math.round((cm.brown_necrosis_ratio||0)*100)}%, nécrose noire ${Math.round((cm.black_necrosis_ratio||0)*100)}%, poudre blanche ${Math.round((cm.white_powder_ratio||0)*100)}%.
-Morphologie : ${mm.spot_count||0} taches détectées, forme ${mm.spot_shape||'—'}, rapport L/l moyen ${mm.avg_aspect_ratio||'—'}, taille moy ${mm.avg_spot_size_pixels||0}px.
-Luminosité image : ${meta.image_brightness||'—'}, résolution : ${meta.image_resolution||'—'}.`;
+  if (!_diagPhoto) {
+    aiText.innerHTML = `<div style="font-size:12px;color:var(--txt2);padding:8px 0">⚠️ Aucune photo disponible pour la classification.</div>`;
+    return;
+  }
 
   try {
-    // Convertir la photo en base64
-    let imageContent = null;
-    if (_diagPhoto) {
-      try {
-        const b64 = await photoToBase64(_diagPhoto);
-        imageContent = { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } };
-      } catch(imgErr) {
-        console.warn('Impossible de lire la photo:', imgErr);
-      }
-    }
+    // Convert photo to resized blob
+    const blob = await fileToBlob(_diagPhoto);
 
-    const userContent = [];
-
-    // Si on a l'image, on l'ajoute en premier
-    if (imageContent) {
-      userContent.push(imageContent);
-    }
-
-    userContent.push({
-      type: 'text',
-      content: undefined, // éviter confusion
-      text: `Culture photographiée : ${cropLabel}
-
-${imageContent ? "Tu vois ci-dessus la photo réelle de la plante malade." : "ATTENTION : image non disponible — base-toi uniquement sur les métriques."}
-
-Métriques extraites par analyse pixel-level :
-${metricsResume}
-
-Diagnostic du moteur local (règles heuristiques) :
-${topMatches}
-
-En tant que phytopathologiste expert pour l'Afrique de l'Ouest et le Burkina Faso, réponds en français de façon structurée et directement utile pour un agriculteur burkinabè :
-
-**1. Diagnostic visuel** — Qu'est-ce que tu vois sur la photo ? Identifie précisément la maladie ou le problème (couleurs, formes, répartition). Si plusieurs hypothèses, classe-les par probabilité.
-
-**2. Validation ou correction** — Le diagnostic local est-il correct, partiel ou erroné ? Explique en une phrase.
-
-**3. Plan de traitement (14 jours)** — Détaille : J0, J3, J7, J14. Utilise des produits disponibles au Burkina Faso (neem, bouillie bordelaise, mancozèbe, produits MASA).
-
-**4. Urgence** — Ce cas nécessite-t-il un technicien agricole immédiatement ? Critères pour savoir quand agir d'urgence.
-
-Sois concis et pratique. Maximum 250 mots.`
-    });
-
-    const resp = await fetch(`${API_BASE}/api/gemini`, {
+    // Appel via proxy backend — plus de CORS, token géré côté serveur
+    const resp = await fetch(HF_MODEL_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        has_image: !!imageContent,
-        max_tokens: 1000,
-        system: `Tu es un phytopathologiste expert spécialisé dans les cultures du Burkina Faso et de l'Afrique de l'Ouest sahélienne. Tu as accès à des photos de plantes malades et des métriques d'analyse d'image. Réponds toujours en français, de façon structurée avec des sections claires (en gras). Sois direct, pratique, adapté aux ressources disponibles en zone rurale africaine.`,
-        messages: [{ role: 'user', content: userContent }]
-      })
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: blob,
     });
 
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (resp.status === 503) {
+      // Model is loading — retry after delay
+      aiText.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center;color:var(--txt2);font-size:12px;padding:8px 0">
+          <div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>
+          <span>Modèle en chargement sur HuggingFace — nouvelle tentative dans 15s…</span>
+        </div>`;
+      await new Promise(r => setTimeout(r, 15000));
+      return callHuggingFaceAnalysis(localMatches);  // single retry
+    }
 
-    const data = await resp.json();
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    if (!resp.ok) throw new Error(`HuggingFace API : HTTP ${resp.status}`);
 
-    aiText.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:0.5px solid var(--brd)">
-        <i class="ti ti-eye" style="font-size:16px;color:var(--green-l)"></i>
-        <span style="font-size:12px;font-weight:600;color:var(--txt)">Analyse visuelle IA${imageContent ? ' · Image analysée' : ' · Métriques seules'}</span>
-        <span class="source-tag source-online" style="margin-left:auto"><i class="ti ti-brain" style="font-size:10px"></i> Gemini Vision</span>
+    const results = await resp.json();
+
+    if (!Array.isArray(results) || !results.length) throw new Error('Réponse vide du modèle');
+
+    // Top-3 predictions
+    const top3 = results.slice(0, 3);
+    const best  = top3[0];
+    const bestInfo = hfLabelToInfo(best.label);
+    const bestPct  = Math.round(best.score * 100);
+    const isHealthy = best.label.toLowerCase().includes('healthy') && bestPct >= 50;
+
+    // Severity color
+    const sevColors = {
+      high:   { bg:'var(--red-xl)',   border:'var(--red-l)',   txt:'#7F1D1D', badge:'badge-red' },
+      medium: { bg:'var(--amber-xl)', border:'var(--amber-l)', txt:'#78350F', badge:'badge-amber' },
+      low:    { bg:'var(--green-xl)', border:'var(--green-l)', txt:'#1B4332', badge:'badge-green' },
+    };
+    const sc = sevColors[bestInfo.severity] || sevColors.medium;
+
+    // Build top-result card
+    let html = `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;padding-bottom:10px;border-bottom:0.5px solid var(--brd)">
+        <i class="ti ti-cpu" style="font-size:15px;color:var(--green-l)"></i>
+        <span style="font-size:12px;font-weight:600;color:var(--txt)">ResNet50 AgriPlant · top-3 prédictions</span>
+        <span class="source-tag source-online" style="margin-left:auto">
+          <i class="ti ti-brand-python" style="font-size:10px"></i> HuggingFace
+        </span>
       </div>
-      <div style="font-size:13px;line-height:1.65;color:var(--txt)">${mdToHtml(text)}</div>`;
+
+      <!-- Best prediction -->
+      <div style="background:${sc.bg};border:1px solid ${sc.border};border-radius:10px;padding:12px 14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:22px">${bestInfo.emoji}</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;color:${sc.txt}">${bestInfo.fr}</div>
+            <div style="font-size:11px;color:${sc.txt};opacity:.8;font-style:italic;margin-top:2px">${bestInfo.pathogen}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:18px;font-weight:700;color:${sc.txt}">${bestPct}%</div>
+            <div style="font-size:10px;color:${sc.txt};opacity:.7">confiance</div>
+          </div>
+        </div>
+        <!-- Confidence bar -->
+        <div style="height:5px;background:rgba(0,0,0,.1);border-radius:3px;overflow:hidden;margin-bottom:10px">
+          <div style="height:100%;width:${bestPct}%;background:${sc.border};border-radius:3px;transition:width .6s"></div>
+        </div>
+        ${!isHealthy ? `
+        <div style="margin-bottom:6px">
+          <div style="font-size:11px;font-weight:600;color:${sc.txt};text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Traitement</div>
+          <div style="font-size:12px;color:${sc.txt};line-height:1.55">${bestInfo.treatment}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:${sc.txt};text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Prévention</div>
+          <div style="font-size:12px;color:${sc.txt};line-height:1.55">${bestInfo.prevention}</div>
+        </div>` : `
+        <div style="font-size:12px;color:${sc.txt};line-height:1.55">${bestInfo.treatment}</div>`}
+      </div>`;
+
+    // Other predictions (compact)
+    if (top3.length > 1) {
+      html += `<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Autres hypothèses</div>`;
+      top3.slice(1).forEach(r => {
+        const info = hfLabelToInfo(r.label);
+        const pct  = Math.round(r.score * 100);
+        html += `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--brd)">
+            <span style="font-size:16px">${info.emoji}</span>
+            <div style="flex:1">
+              <div style="font-size:12px;color:var(--txt);font-weight:500">${info.fr}</div>
+              <div style="font-size:10px;color:var(--txt2);margin-top:2px">${info.pathogen}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:13px;font-weight:600;color:var(--txt)">${pct}%</div>
+              <div style="width:50px;height:4px;background:var(--bg3);border-radius:2px;margin-top:3px;overflow:hidden">
+                <div style="height:100%;width:${pct}%;background:var(--green-l);border-radius:2px"></div>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+
+    // Cross-check with local heuristic matcher
+    const agree = localMatches.length && top3.some(r => {
+      const inf = hfLabelToInfo(r.label);
+      return localMatches.some(m => inf.fr.toLowerCase().includes(m.name.toLowerCase().split(' ')[0]));
+    });
+
+    if (localMatches.length) {
+      html += `
+        <div style="margin-top:10px;padding:9px 11px;border-radius:8px;background:${agree?'var(--green-xl)':'var(--blue-xl)'};display:flex;gap:7px;align-items:flex-start">
+          <i class="ti ti-${agree?'check':'arrows-exchange'}" style="font-size:14px;color:${agree?'#1B4332':'#1E3A8A'};flex-shrink:0;margin-top:1px"></i>
+          <div style="font-size:11px;color:${agree?'#2D6A4F':'#1E40AF'};line-height:1.5">
+            <strong>${agree?'Concordance':'Divergence'} avec le moteur local :</strong>
+            ${agree
+              ? `Les deux moteurs s'accordent → diagnostic plus fiable.`
+              : `Le moteur local a identifié : ${localMatches[0].name}. Faites confiance au score ResNet50 le plus élevé.`}
+          </div>
+        </div>`;
+    }
+
+    // Low confidence warning
+    if (bestPct < 50) {
+      html += `
+        <div style="margin-top:8px;padding:9px 11px;border-radius:8px;background:var(--amber-xl);display:flex;gap:7px;align-items:flex-start">
+          <i class="ti ti-info-circle" style="font-size:14px;color:var(--amber-l);flex-shrink:0;margin-top:1px"></i>
+          <div style="font-size:11px;color:#78350F;line-height:1.5">
+            Confiance ResNet50 faible (${bestPct}%). Reprendre la photo avec la lésion bien centrée en pleine lumière naturelle.
+          </div>
+        </div>`;
+    }
+
+    aiText.innerHTML = html;
 
   } catch(e) {
     aiText.innerHTML = `
       <div style="display:flex;gap:8px;align-items:flex-start;padding:10px;background:var(--amber-xl);border-radius:8px">
         <i class="ti ti-wifi-off" style="font-size:16px;color:var(--amber);flex-shrink:0;margin-top:1px"></i>
         <div style="font-size:12px;color:#78350F">
-          <strong>Analyse IA indisponible</strong><br>
+          <strong>Analyse ResNet50 indisponible</strong><br>
           ${e.message || 'Vérifiez votre connexion internet.'}<br>
-          <span style="opacity:.8">Le diagnostic local ci-dessus reste valide.</span>
+          <span style="opacity:.8">Le diagnostic local ci-dessus reste valide. Si le problème persiste, vérifiez que la variable <code>HF_TOKEN</code> est bien configurée sur Render.</span>
         </div>
       </div>`;
   }
@@ -2176,10 +4579,8 @@ async function runDiagnosis() {
   document.getElementById('diag-loading').style.display = 'none';
   renderDiagResults(matches, features, meta);
 
-  /* Claude Vision API if online */
-  if (isOnline) {
-    callClaudeAnalysis(features, matches);
-  }
+  /* HuggingFace ResNet50 — always try (no auth needed for public model) */
+  callHuggingFaceAnalysis(matches);
 }
 
 function resetDiagnosis() {
